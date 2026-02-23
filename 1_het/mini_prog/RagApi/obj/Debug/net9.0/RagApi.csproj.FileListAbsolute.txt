@@ -41,3 +41,4 @@ C:\Panka\egyetem\2526_tavasz\onlab\1_het\mini_prog\RagApi\bin\Debug\net9.0\UglyT
 C:\Panka\egyetem\2526_tavasz\onlab\1_het\mini_prog\RagApi\bin\Debug\net9.0\DocumentFormat.OpenXml.dll
 C:\Panka\egyetem\2526_tavasz\onlab\1_het\mini_prog\RagApi\bin\Debug\net9.0\DocumentFormat.OpenXml.Framework.dll
 C:\Panka\egyetem\2526_tavasz\onlab\1_het\mini_prog\RagApi\bin\Debug\net9.0\System.IO.Packaging.dll
+C:\Panka\egyetem\2526_tavasz\onlab\1_het\mini_prog\RagApi\obj\Debug\net9.0\RagApi.sourcelink.json
