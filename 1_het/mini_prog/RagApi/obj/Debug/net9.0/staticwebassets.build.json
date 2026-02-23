@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "az83AvDXrvkdWZfc3kbogKTUVkWT/EXgprheKrTXC7I=",
+  "Source": "RagApi",
+  "BasePath": "_content/RagApi",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}

@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "dgSpecHash": "CebQ+P080Ms=",
+  "success": true,
+  "projectFilePath": "C:\\Panka\\egyetem\\2526_tavasz\\onlab\\1_het\\mini_prog\\RagApi\\RagApi.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\jorda_v7pn46u\\.nuget\\packages\\documentformat.openxml\\3.4.1\\documentformat.openxml.3.4.1.nupkg.sha512",
+    "C:\\Users\\jorda_v7pn46u\\.nuget\\packages\\documentformat.openxml.framework\\3.4.1\\documentformat.openxml.framework.3.4.1.nupkg.sha512",
+    "C:\\Users\\jorda_v7pn46u\\.nuget\\packages\\microsoft.aspnetcore.openapi\\9.0.4\\microsoft.aspnetcore.openapi.9.0.4.nupkg.sha512",
+    "C:\\Users\\jorda_v7pn46u\\.nuget\\packages\\microsoft.openapi\\1.6.17\\microsoft.openapi.1.6.17.nupkg.sha512",
+    "C:\\Users\\jorda_v7pn46u\\.nuget\\packages\\pdfpig\\0.1.13\\pdfpig.0.1.13.nupkg.sha512",
+    "C:\\Users\\jorda_v7pn46u\\.nuget\\packages\\system.io.packaging\\8.0.1\\system.io.packaging.8.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}
