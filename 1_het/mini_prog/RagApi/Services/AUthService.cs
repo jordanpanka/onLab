@@ -1,5 +1,6 @@
 
 using System.Security.Cryptography;
+using System.Security.Principal;
 using ef;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
@@ -8,9 +9,11 @@ public class ServiceResult
 {
     public bool Ok {get; set;}
     public string? Error {get; set;}
+     
+    public string? Data {get; set;}
 
-    public static ServiceResult Success()
-    =>new ServiceResult{Ok=true};
+    public static ServiceResult Success(string data="")
+    =>new ServiceResult{Ok=true, Data=data};
 
     public static ServiceResult Fail(string error)
     =>new ServiceResult{Ok=false, Error=error};
@@ -18,6 +21,7 @@ public class ServiceResult
 public class AuthService
 {
     private readonly CodeDbContext db;
+    private readonly JwtService jwt;
     public AuthService(CodeDbContext cdb)
     {
         db = cdb;
@@ -39,6 +43,21 @@ public class AuthService
         await db.SaveChangesAsync();
         return ServiceResult.Success();
     }
+    public async Task<ServiceResult>LoginAsync(RegisterData data)
+    {
+        var email=data.email.Trim().ToLowerInvariant();
+        var user=await db.Users.SingleOrDefaultAsync(x => x.Email==email);
+        if(user==null)
+            return ServiceResult.Fail("Nem létezik a megadott email cím!");
+
+        if(!VerifyPassword(data.password,user.Passwordsalt, user.PasswordHash))
+            return ServiceResult.Fail("Hibás a jelszó");
+
+        var token=jwt.CreateToken(user);
+
+        return ServiceResult.Success(token);
+        
+    }
     public (byte[] hash, byte[] salt) HashPassword(string pass)
     {
         var salt=RandomNumberGenerator.GetBytes(16);
@@ -50,6 +69,18 @@ public class AuthService
             32);
 
         return(salt,hash);
+        
+    }
+    public bool VerifyPassword(string pass, byte[] salt,byte[] expectedHash)
+    {
+        var hash = Rfc2898DeriveBytes.Pbkdf2(
+            pass,
+            salt,
+            100_000,
+            HashAlgorithmName.SHA256,
+            32);
+
+        return CryptographicOperations.FixedTimeEquals(hash, expectedHash);
         
     }
 }

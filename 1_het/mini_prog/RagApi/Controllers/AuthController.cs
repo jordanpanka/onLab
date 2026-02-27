@@ -21,4 +21,12 @@ public class AuthController : ControllerBase
         if(!result.Ok) return BadRequest(result.Error);
         return Ok();
     }
+
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] RegisterData data)
+    {
+        var result=await authService.LoginAsync(data);
+        if(!result.Ok) return BadRequest(result.Error);
+        return Ok(result.Data);
+    }
 }

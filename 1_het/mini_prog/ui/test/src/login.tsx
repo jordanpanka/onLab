@@ -38,7 +38,7 @@ export function Login() {
                 return;
             }
             const data=await r.json();
-            localStorage.setItem("token",data.token);
+            localStorage.setItem("token",data);
             route("/chat",true);
 
         }
