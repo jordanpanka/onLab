@@ -108,6 +108,23 @@ app.Lifetime.ApplicationStarted.Register(() =>
 
 
 });
+app.MapPost("api/register", async (DbContext db,RegisterData data) =>
+{
+    var email=data.email.Trim().ToLowerInvariant();
+    if(data.password.IsNullorWhiteSpace() || data.password.Length<6)
+        return Results.BadRequest("A jelszó nem felel meg a követelményeknek");
+    
+    var exist=db.Users.Where(x =>x.email==email);
+    if(exist) return Results.BadRequest("Már létezik ez az email cím");
+
+    var (salt, hash)=HasPassword(data.password);
+    var user=new{ Email=email, PasswordHash=hash, PasswordSalt=salt, CreatedTime=DateTime.UtcNow};
+
+    db.Users.Add(user);
+    db.SaveChanges();
+    return Results.Ok();
+
+});
 app.MapPost("/api/docs", async (HttpClient http, IFormFile document) =>
 {
     string text="";
@@ -235,6 +252,7 @@ app.MapPost("/api/chat", async (HttpClient http, ChatRequest req) =>
 });
 app.Run();
 record ChatRequest(string Prompt);
+record RegisterData(string email, string password);
 
 
 
