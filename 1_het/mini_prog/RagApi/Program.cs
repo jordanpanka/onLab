@@ -85,9 +85,9 @@ static List<string> chunkText(string text, int chunkLength, int redundance)
 }
 static async Task<float[]> Embed(HttpClient http, string text)
 {
-    //using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+    
     var payload = new { model = Embed_model, prompt = text };
-    var response = await http.PostAsJsonAsync($"{Ollama}/api/embeddings", payload/*,cts.Token*/);
+    var response = await http.PostAsJsonAsync($"{Ollama}/api/embeddings", payload);
     response.EnsureSuccessStatusCode();
 
     using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -208,9 +208,9 @@ app.MapPost("/api/chat", async (HttpClient http, ChatRequest req) =>
 
     //prompt to model
     var finalPrompt = $"""
-    Te egy asszisztens vagy, aki KIZÁRÓLAG az alábbi KONTEKSTUS alapján válaszol.Mindig azon a nyelven válaszolj, amilyen nyelven a kérdés elhangzott. A szavak közé tegyél szóközöket, ha kell, úgy higy értelmesen legyenek elválasztva.Ha a válasz nem található a kontextusban, mondd: "Nem találom a dokumentumokban."
+    Te egy asszisztens vagy, aki KIZÁRÓLAG az alábbi KONTEKSZTUS alapján válaszol.Mindig azon a nyelven válaszolj, amilyen nyelven a kérdés elhangzott. A szavak közé tegyél szóközöket, ha kell, úgy higy értelmesen legyenek elválasztva.Ha a válasz nem található a kontextusban, mondd: "Nem találom a dokumentumokban."
 
-    KONTEKSTUS:
+    KONTEKSZTUS:
     {context}
 
     KÉRDÉS:
@@ -218,9 +218,8 @@ app.MapPost("/api/chat", async (HttpClient http, ChatRequest req) =>
     """;
    
     //Ollama generate
-    //using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
     var genPayload = new { model = Gen_model, prompt = finalPrompt, stream = false };
-    var genRes = await http.PostAsJsonAsync($"{Ollama}/api/generate", genPayload/*,cts.Token*/);
+    var genRes = await http.PostAsJsonAsync($"{Ollama}/api/generate", genPayload);
     genRes.EnsureSuccessStatusCode();
     
     using var genDoc = JsonDocument.Parse(await genRes.Content.ReadAsStringAsync());
