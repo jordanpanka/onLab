@@ -1,13 +1,12 @@
 import './login.css'
 import avatar from "./assets/avatar.png";
 import { useState } from 'preact/hooks';
+import { route } from 'preact-router';
 
 export function Login() {
     const [register,setRegister]=useState(false);
     const [email,setEmail]=useState("");
     const [password,setPassword]=useState("");
-
-    
     async function onClick(){
         if(register)
         {
@@ -34,8 +33,13 @@ export function Login() {
                     email, password
                 })
             });
-
-
+            if(!r.ok){
+                alert("Hibás adatok");
+                return;
+            }
+            const data=await r.json();
+            localStorage.setItem("token",data.token);
+            route("/chat",true);
 
         }
     }
@@ -45,10 +49,9 @@ export function Login() {
             <div className="avatar">
                 <img src={avatar} alt="Avatar"></img>
             </div>
-
-            <input type="email" value="email"placeholder="Email address"></input>
-            <input type="password" value="password" placeholder="Password"></input>
-            <button className="login-btn">{register ? "Register" : "Login"}</button>
+            <input type="email" placeholder="Email address" onChange={e=>setEmail(e.currentTarget.value)}></input>
+            <input type="password" placeholder="Password" onChange={e=>setPassword(e.currentTarget.value)}></input>
+            <button className="login-btn" onClick={onClick}>{register ? "Register" : "Login"}</button>
             {!register && <p>Have no account yet? <a href="" onClick={(e)=>{e.preventDefault(); setRegister(true);}}>Register</a></p>}
         
         </div>
