@@ -108,7 +108,7 @@ app.Lifetime.ApplicationStarted.Register(() =>
 
 
 });
-app.MapPost("api/register", async (DbContext db,RegisterData data) =>
+app.MapPost("api/register", async (CodeDbContext db,RegisterData data) =>
 {
     var email=data.email.Trim().ToLowerInvariant();
     if(data.password.IsNullorWhiteSpace() || data.password.Length<6)
@@ -252,7 +252,7 @@ app.MapPost("/api/chat", async (HttpClient http, ChatRequest req) =>
 });
 app.Run();
 record ChatRequest(string Prompt);
-record RegisterData(string email, string password);
+public record RegisterData(string email, string password);
 
 
 
