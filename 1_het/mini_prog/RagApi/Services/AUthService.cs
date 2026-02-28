@@ -7,60 +7,64 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 public class ServiceResult
 {
-    public bool Ok {get; set;}
-    public string? Error {get; set;}
-     
-    public string? Data {get; set;}
+    public bool Ok { get; set; }
+    public string? Error { get; set; }
 
-    public static ServiceResult Success(string data="")
-    =>new ServiceResult{Ok=true, Data=data};
+    public string? Data { get; set; }
+
+    public static ServiceResult Success(string data = "")
+    => new ServiceResult { Ok = true, Data = data };
 
     public static ServiceResult Fail(string error)
-    =>new ServiceResult{Ok=false, Error=error};
+    => new ServiceResult { Ok = false, Error = error };
 }
 public class AuthService
 {
     private readonly CodeDbContext db;
     private readonly JwtService jwt;
-    public AuthService(CodeDbContext cdb)
+    public AuthService(CodeDbContext cdb, JwtService jwts)
     {
         db = cdb;
+        jwt = jwts;
     }
-    public async Task<ServiceResult>RegisterAsync(RegisterData data)
+    public async Task<ServiceResult> RegisterAsync(RegisterData data)
     {
         var email = data.email.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(data.password) || data.password.Length < 6)
             return ServiceResult.Fail("A jelszó nem felel meg a követelményeknek");
 
         var exist = await db.Users.AnyAsync(x => x.Email == email);
-        if (exist) 
+        if (exist)
             return ServiceResult.Fail("Már létezik ez az email cím");
 
         var (salt, hash) = HashPassword(data.password);
-        var user = new DbUser{ Email = email, PasswordHash = hash, Passwordsalt = salt, CreatedTime = DateTime.UtcNow };
+        var user = new DbUser { Email = email, PasswordHash = hash, Passwordsalt = salt, CreatedTime = DateTime.UtcNow };
 
         db.Users.Add(user);
         await db.SaveChangesAsync();
         return ServiceResult.Success();
     }
-    public async Task<ServiceResult>LoginAsync(RegisterData data)
+    public async Task<ServiceResult> LoginAsync(RegisterData data)
     {
-        var email=data.email.Trim().ToLowerInvariant();
-        var user=await db.Users.SingleOrDefaultAsync(x => x.Email==email);
-        if(user==null)
+        var email = data.email.Trim().ToLowerInvariant();
+        
+        var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email);
+        if (user == null)
+        {
+            Console.WriteLine("nincs meg az email");
             return ServiceResult.Fail("Nem létezik a megadott email cím!");
-
-        if(!VerifyPassword(data.password,user.Passwordsalt, user.PasswordHash))
+        }
+        if (!VerifyPassword(data.password, user.Passwordsalt, user.PasswordHash))
             return ServiceResult.Fail("Hibás a jelszó");
 
-        var token=jwt.CreateToken(user);
+        var token = jwt.CreateToken(user);
 
         return ServiceResult.Success(token);
-        
+
     }
     public (byte[] hash, byte[] salt) HashPassword(string pass)
     {
-        var salt=RandomNumberGenerator.GetBytes(16);
+        var salt = RandomNumberGenerator.GetBytes(16);
         var hash = Rfc2898DeriveBytes.Pbkdf2(
             pass,
             salt,
@@ -68,10 +72,10 @@ public class AuthService
             HashAlgorithmName.SHA256,
             32);
 
-        return(salt,hash);
-        
+        return (salt, hash);
+
     }
-    public bool VerifyPassword(string pass, byte[] salt,byte[] expectedHash)
+    public bool VerifyPassword(string pass, byte[] salt, byte[] expectedHash)
     {
         var hash = Rfc2898DeriveBytes.Pbkdf2(
             pass,
@@ -81,6 +85,6 @@ public class AuthService
             32);
 
         return CryptographicOperations.FixedTimeEquals(hash, expectedHash);
-        
+
     }
 }

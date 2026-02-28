@@ -2,17 +2,73 @@ using System.Text;
 using System.Text.Json;
 using UglyToad.PdfPig;
 using DocumentFormat.OpenXml.Packaging;
+using ef;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+
 var builder = WebApplication.CreateBuilder(args);
-//builder.Services.AddHttpClient();
+
 
 builder.Services.AddHttpClient("default", c =>
 {
     c.Timeout = TimeSpan.FromMinutes(5);
 });
+builder.Services.AddDbContext<CodeDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("Default")
+    ));
+//JWt 
+var jwtKey = builder.Configuration["Jwt:Key"];
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey!);
 
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+
+builder.Services.AddAuthorization();
+//add services
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<JwtService>();
+
+//controllers
+builder.Services.AddControllers();
+
+//preact,frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("frontend",
+        policy =>
+        {
+            policy
+                .WithOrigins("http://localhost:5173")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
 
 var app = builder.Build();
-app.MapGet("/", () => "RagApi fut ✅");
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<CodeDbContext>();
+    db.Database.Migrate();
+}
+/*app.MapGet("/", () => "RagApi fut ✅");
 
 const string Qdrant = "http://localhost:6333";
 const string Collection = "docs";
@@ -250,11 +306,19 @@ app.MapPost("/api/chat", async (HttpClient http, ChatRequest req) =>
     }
 
 });
+app.Run();*/
+
+app.UseCors("frontend");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
 app.Run();
+
+
 record ChatRequest(string Prompt);
 public record RegisterData(string email, string password);
-
-
-
 
 
