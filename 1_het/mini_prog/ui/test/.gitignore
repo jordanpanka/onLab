@@ -1,24 +1,41 @@
 # Logs
 logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Node
+node_modules/
+dist/
+dist-ssr/
+coverage/
+*.tsbuildinfo
 
-# Editor directories and files
+# Environment files
+.env
+.env.*
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+*.rsuser
+*.sln.docstates
+*.nupkg
+.nuget/
+packages/
+
+# SQLite / temp
+*.db
+*.sqlite
+*.cache
+
+# Editor
 .vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
+Desktop.ini
+
+# Docker
+docker-compose.override.yml
