@@ -5,6 +5,8 @@ using ef;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Mail;
+
 public class ServiceResult
 {
     public bool Ok { get; set; }
@@ -29,9 +31,15 @@ public class AuthService
     }
     public async Task<ServiceResult> RegisterAsync(RegisterData data)
     {
+        if (string.IsNullOrEmpty(data.email)) return ServiceResult.Fail("Email cím megadása kötelező.");
+        if (string.IsNullOrEmpty(data.email)) return ServiceResult.Fail("Jelszó megadása kötelező.");
+
         var email = data.email.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(data.password) || data.password.Length < 6)
-            return ServiceResult.Fail("A jelszó nem felel meg a követelményeknek");
+
+        if (!IsValidEmail(email)) return ServiceResult.Fail("Hibás email formátum.");
+
+        if (string.IsNullOrWhiteSpace(data.password) || data.password.Length < 6 || !HasUpperAndLower(data.password))
+            return ServiceResult.Fail("A jelszó nem felel meg a követelményeknek\n -tartalmaznia kell kis-és nagy betűt\n -legalább 6 karakter hosszú legyen\n");
 
         var exist = await db.Users.AnyAsync(x => x.Email == email);
         if (exist)
@@ -47,7 +55,7 @@ public class AuthService
     public async Task<ServiceResult> LoginAsync(RegisterData data)
     {
         var email = data.email.Trim().ToLowerInvariant();
-        
+
         var user = await db.Users.SingleOrDefaultAsync(x => x.Email == email);
         if (user == null)
         {
@@ -86,5 +94,21 @@ public class AuthService
 
         return CryptographicOperations.FixedTimeEquals(hash, expectedHash);
 
+    }
+    public bool IsValidEmail(string email)
+    {
+        try
+        {
+            var addr = new MailAddress(email);
+            return addr.Address == email;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+    private bool HasUpperAndLower(string input)
+    {
+        return input.Any(char.IsUpper) && input.Any(char.IsLower);
     }
 }

@@ -1,4 +1,3 @@
-import { useState } from "preact/hooks";
 import { Login } from "./login";
 import { App } from "./app";
 import { LocationProvider, Router, Route } from "preact-iso";
