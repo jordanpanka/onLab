@@ -2,17 +2,73 @@ using System.Text;
 using System.Text.Json;
 using UglyToad.PdfPig;
 using DocumentFormat.OpenXml.Packaging;
+using ef;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+
 var builder = WebApplication.CreateBuilder(args);
-//builder.Services.AddHttpClient();
+
 
 builder.Services.AddHttpClient("default", c =>
 {
     c.Timeout = TimeSpan.FromMinutes(5);
 });
+builder.Services.AddDbContext<CodeDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("Default")
+    ));
+//JWt 
+var jwtKey = builder.Configuration["Jwt:Key"];
+var keyBytes = Encoding.UTF8.GetBytes(jwtKey!);
 
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
+
+builder.Services.AddAuthorization();
+//add services
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<JwtService>();
+
+//controllers
+builder.Services.AddControllers();
+
+//preact,frontend
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("frontend",
+        policy =>
+        {
+            policy
+                .WithOrigins("http://localhost:5173")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        });
+});
 
 var app = builder.Build();
-app.MapGet("/", () => "RagApi fut ✅");
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<CodeDbContext>();
+    db.Database.Migrate();
+}
+/*app.MapGet("/", () => "RagApi fut ✅");
 
 const string Qdrant = "http://localhost:6333";
 const string Collection = "docs";
@@ -85,9 +141,9 @@ static List<string> chunkText(string text, int chunkLength, int redundance)
 }
 static async Task<float[]> Embed(HttpClient http, string text)
 {
-    //using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+    
     var payload = new { model = Embed_model, prompt = text };
-    var response = await http.PostAsJsonAsync($"{Ollama}/api/embeddings", payload/*,cts.Token*/);
+    var response = await http.PostAsJsonAsync($"{Ollama}/api/embeddings", payload);
     response.EnsureSuccessStatusCode();
 
     using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -106,6 +162,23 @@ app.Lifetime.ApplicationStarted.Register(() =>
         await EnsureCollection(scopeHttp);
     });
 
+
+});
+app.MapPost("api/register", async (CodeDbContext db,RegisterData data) =>
+{
+    var email=data.email.Trim().ToLowerInvariant();
+    if(data.password.IsNullorWhiteSpace() || data.password.Length<6)
+        return Results.BadRequest("A jelszó nem felel meg a követelményeknek");
+    
+    var exist=db.Users.Where(x =>x.email==email);
+    if(exist) return Results.BadRequest("Már létezik ez az email cím");
+
+    var (salt, hash)=HasPassword(data.password);
+    var user=new{ Email=email, PasswordHash=hash, PasswordSalt=salt, CreatedTime=DateTime.UtcNow};
+
+    db.Users.Add(user);
+    db.SaveChanges();
+    return Results.Ok();
 
 });
 app.MapPost("/api/docs", async (HttpClient http, IFormFile document) =>
@@ -208,9 +281,9 @@ app.MapPost("/api/chat", async (HttpClient http, ChatRequest req) =>
 
     //prompt to model
     var finalPrompt = $"""
-    Te egy asszisztens vagy, aki KIZÁRÓLAG az alábbi KONTEKSTUS alapján válaszol.Mindig azon a nyelven válaszolj, amilyen nyelven a kérdés elhangzott. A szavak közé tegyél szóközöket, ha kell, úgy higy értelmesen legyenek elválasztva.Ha a válasz nem található a kontextusban, mondd: "Nem találom a dokumentumokban."
+    Te egy asszisztens vagy, aki KIZÁRÓLAG az alábbi KONTEKSZTUS alapján válaszol.Mindig azon a nyelven válaszolj, amilyen nyelven a kérdés elhangzott. A szavak közé tegyél szóközöket, ha kell, úgy higy értelmesen legyenek elválasztva.Ha a válasz nem található a kontextusban, mondd: "Nem találom a dokumentumokban."
 
-    KONTEKSTUS:
+    KONTEKSZTUS:
     {context}
 
     KÉRDÉS:
@@ -218,9 +291,8 @@ app.MapPost("/api/chat", async (HttpClient http, ChatRequest req) =>
     """;
    
     //Ollama generate
-    //using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
     var genPayload = new { model = Gen_model, prompt = finalPrompt, stream = false };
-    var genRes = await http.PostAsJsonAsync($"{Ollama}/api/generate", genPayload/*,cts.Token*/);
+    var genRes = await http.PostAsJsonAsync($"{Ollama}/api/generate", genPayload);
     genRes.EnsureSuccessStatusCode();
     
     using var genDoc = JsonDocument.Parse(await genRes.Content.ReadAsStringAsync());
@@ -234,10 +306,19 @@ app.MapPost("/api/chat", async (HttpClient http, ChatRequest req) =>
     }
 
 });
+app.Run();*/
+
+app.UseCors("frontend");
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
 app.Run();
+
+
 record ChatRequest(string Prompt);
-
-
-
+public record RegisterData(string email, string password);
 
 
