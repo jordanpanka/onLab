@@ -29,10 +29,11 @@ public class AuthService
         if (string.IsNullOrEmpty(data.email)) return ServiceResult.Fail("Email cím megadása kötelező.");
         if (string.IsNullOrEmpty(data.email)) return ServiceResult.Fail("Jelszó megadása kötelező.");
         var email = data.email.Trim().ToLowerInvariant();
+        if (!IsValidEmail(email)) return ServiceResult.Fail("Hibás email formátum.");
         if (string.IsNullOrWhiteSpace(data.password) || data.password.Length < 6)
             return ServiceResult.Fail("A jelszó nem felel meg a követelményeknek");
 
-         if (!IsValidEmail(email)) return ServiceResult.Fail("Hibás email formátum.");
+        if (!IsValidEmail(email)) return ServiceResult.Fail("Hibás email formátum.");
 
         if (string.IsNullOrWhiteSpace(data.password) || data.password.Length < 6 || !HasUpperAndLower(data.password))
             return ServiceResult.Fail("A jelszó nem felel meg a követelményeknek\n -tartalmaznia kell kis-és nagy betűt\n -legalább 6 karakter hosszú legyen\n");
