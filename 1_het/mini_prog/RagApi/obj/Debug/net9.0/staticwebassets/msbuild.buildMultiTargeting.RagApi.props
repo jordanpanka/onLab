@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\RagApi.props" />
-</Project>
