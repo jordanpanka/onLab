@@ -22,3 +22,25 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# .NET build folders
+bin/
+obj/
+
+# User-specific files
+*.user
+*.rsuser
+*.sln.docstates
+
+# Visual Studio
+.vs/
+
+# Rider
+.idea/
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+
+# EF Core
+Migrations/*.Designer.cs
