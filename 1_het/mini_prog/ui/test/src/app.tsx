@@ -1,13 +1,15 @@
 import { useState } from 'preact/hooks'
 import { UploadFile } from './uploadFile';
 import './app.css'
+import { ProjectBar } from './ProjectBar';
+import { AppBar, Toolbar, Typography } from '@mui/material';
 
 export function App() {
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("bla bla bla");
   const [file, setFile] = useState<File | null>(null);
   const [showWindow, setShowwindow] = useState(false);
-  const [uploadResult,setUploadResult]=useState("");
+  const [uploadResult, setUploadResult] = useState("");
 
   async function send() {
     setAnswer("Thinking...");
@@ -21,7 +23,7 @@ export function App() {
     const data = await r.json();
     setAnswer(data.answer);
   }
- 
+
 
   async function link() {
     if (!file) {
@@ -30,7 +32,7 @@ export function App() {
     }
     const data = new FormData();
     data.append("document", file);
-    
+
 
     const response = await fetch("/api/docs", {
       method: "POST",
@@ -41,22 +43,36 @@ export function App() {
   }
   return (
     <>
-      <h1>Mini chat</h1>
-      <div className="input-row">
-        <input className="prompt" value={prompt} onChange={(e) => setPrompt(e.currentTarget.value)} placeholder={"What do you want to know?"}>
-        </input>
-        <button className="link-btn" onClick={() => setShowwindow(true)}><span className="material-icons">attach_file</span></button>
-        <button className="send-btn" onClick={send}>Send</button>
-      </div>
-      <h2>Answer</h2>
-      <div className="answer">
-        {answer}
-      </div>
-      {showWindow && <div className="modal-overlay">
-        <div className="modal-window">
-        <UploadFile setFile={setFile} link={link} answer={uploadResult}></UploadFile>
+      <AppBar position="sticky"
+        sx={{
+          backgroundColor: "white",
+          color: "black",
+          borderBottom: "1px solid #eee",
+        }}>
+        <Toolbar>
+          <Typography>Mini chat</Typography>
+        </Toolbar>
+      </AppBar>
+      <ProjectBar></ProjectBar>
+
+      <div>
+        <div className="input-row">
+          <input className="prompt" value={prompt} onChange={(e) => setPrompt(e.currentTarget.value)} placeholder={"What do you want to know?"}>
+          </input>
+          <button className="link-btn" onClick={() => setShowwindow(true)}><span className="material-icons">attach_file</span></button>
+          <button className="send-btn" onClick={send}>Send</button>
         </div>
-      </div>}
+        <h2>Answer</h2>
+        <div className="answer">
+          {answer}
+        </div>
+        {showWindow && <div className="modal-overlay">
+          <div className="modal-window">
+            <UploadFile setFile={setFile} link={link} answer={uploadResult}></UploadFile>
+          </div>
+        </div>}
+      </div>
+
     </>
   )
 }

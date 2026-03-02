@@ -145,3 +145,6 @@ input:focus {
     animation: modalFadeIn 0.18s ease-out;
 
 }
+.main-window{
+  display: flex;
+}
