@@ -2,8 +2,9 @@ import { useState } from 'preact/hooks'
 import { UploadFile } from './uploadFile';
 import './app.css'
 import { ProjectBar } from './ProjectBar';
-import { AppBar, Toolbar, Typography } from '@mui/material';
-
+import { AppBar, Box, IconButton, Toolbar, Typography } from '@mui/material';
+import LogoutIcon from "@mui/icons-material/Logout";
+const HEADER_H = 56;
 export function App() {
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("bla bla bla");
@@ -43,19 +44,32 @@ export function App() {
   }
   return (
     <>
-      <AppBar position="sticky"
+      <AppBar
+        position="fixed"
+        elevation={1}
         sx={{
           backgroundColor: "white",
           color: "black",
           borderBottom: "1px solid #eee",
-        }}>
-        <Toolbar>
-          <Typography>Mini chat</Typography>
+          zIndex: (theme) => theme.zIndex.drawer + 1, // fontos: legyen a Drawer felett
+        }}
+      >
+        <Toolbar sx={{ height: HEADER_H }}>
+          <Box sx={{ display: 'flex', alignItems: "center",justifyContent:"space-between",width: "100%", }}>
+            <Typography sx={{ fontWeight: 600 }}>Mini chat</Typography>
+            <Box sx={{ display: 'flex', alignItems: "center", gap:2 }}>
+              <Typography>Vezetéknév Keresztnév</Typography>
+              <IconButton><LogoutIcon /></IconButton>
+            </Box>
+          </Box>
+
+
         </Toolbar>
       </AppBar>
-      <ProjectBar></ProjectBar>
 
-      <div>
+      {/* SIDEBAR */}
+      <ProjectBar />
+      <Box>
         <div className="input-row">
           <input className="prompt" value={prompt} onChange={(e) => setPrompt(e.currentTarget.value)} placeholder={"What do you want to know?"}>
           </input>
@@ -71,7 +85,7 @@ export function App() {
             <UploadFile setFile={setFile} link={link} answer={uploadResult}></UploadFile>
           </div>
         </div>}
-      </div>
+      </Box>
 
     </>
   )

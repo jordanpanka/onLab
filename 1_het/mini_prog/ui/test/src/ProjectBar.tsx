@@ -11,7 +11,13 @@ type Project = {
 }
 const openwidth = 240;
 const closedWidth = 60;
-export function ProjectBar() {
+const HEADER_H = 64
+export function ProjectBar(/*{ open,
+    headerH,
+}: {
+    open: boolean;
+    headerH: number;
+}*/) {
     const [search, setSearch] = useState("");
     const [newProject, setNewProject] = useState<Project>();
     const [projects, setProjects] = useState<Project[]>([]);
@@ -37,18 +43,26 @@ export function ProjectBar() {
         setProjects(data);
     }
     return (<>
-        <Drawer variant="persistent" anchor="left" open={open} sx={{ width: open ? openwidth : closedWidth, gap:2}}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", height: 56, alignItems: "center", 
-                marginLeft:2, marginRight:2
-             }}>
+        <Drawer variant="persistent" anchor="left" open={open} sx={{
+            width: open ? openwidth : closedWidth, gap: 2, "& .MuiDrawer-paper": {
+                width: open ? openwidth : closedWidth,
+                boxSizing: "border-box",
+                top: HEADER_H,
+                height: `calc(100% - ${HEADER_H}px)`,
+            },
+        }}>
+            <Box sx={{
+                display: "flex", justifyContent: "space-between", height: 56, alignItems: "center",
+                marginLeft: 2, marginRight: 2
+            }}>
                 <Typography sx={{
                     lineHeight: 1,
                     fontFamily: "'Inter', sans-serif",
                 }}>My projects</Typography>
-                <IconButton><CreateNewFolderIcon /></IconButton>
+                <IconButton onClick={addProject}><CreateNewFolderIcon /></IconButton>
             </Box>
 
-            <Box sx={{ display: "flex", marginLeft:2, marginRight:2}}>
+            <Box sx={{ display: "flex", marginLeft: 2, marginRight: 2 }}>
                 <TextField size="small" placeholder="Search..." InputProps={{
                     endAdornment: (<InputAdornment position="end"> <IconButton>
                         <SearchIcon />
