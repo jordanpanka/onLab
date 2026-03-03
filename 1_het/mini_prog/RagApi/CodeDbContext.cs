@@ -7,4 +7,5 @@ public class CodeDbContext : DbContext
     {
     }
     public DbSet<DbUser> Users {get; set;}
+    public DbSet<DbProject> Projects {get; set;}
 }

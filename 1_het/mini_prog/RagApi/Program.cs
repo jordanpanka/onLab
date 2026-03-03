@@ -319,6 +319,6 @@ app.Run();
 
 
 record ChatRequest(string Prompt);
-public record RegisterData(string email, string password);
+public record RegisterData(string email, string password, string firstName, string lastName);
 
 

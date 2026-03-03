@@ -58,7 +58,7 @@ export function ProjectBar(/*{ open,
                 <Typography sx={{
                     lineHeight: 1,
                     fontFamily: "'Inter', sans-serif",
-                }}>My projects</Typography>
+                }}>My Ivestigations</Typography>
                 <IconButton onClick={addProject}><CreateNewFolderIcon /></IconButton>
             </Box>
 

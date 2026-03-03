@@ -8,8 +8,8 @@ public class ServiceResult
 {
     public bool Ok { get; set; }
     public string? Error { get; set; }
-    public string? Data { get; set; }
-    public static ServiceResult Success(string data = "")
+    public object? Data { get; set; }
+    public static ServiceResult Success(object data = null)
      => new ServiceResult { Ok = true, Data = data };
 
     public static ServiceResult Fail(string error)
@@ -43,7 +43,7 @@ public class AuthService
             return ServiceResult.Fail("Már létezik ez az email cím");
 
         var (salt, hash) = HashPassword(data.password);
-        var user = new DbUser { Email = email, PasswordHash = hash, Passwordsalt = salt, CreatedTime = DateTime.UtcNow };
+        var user = new DbUser { Email = email, FirstName=data.firstName, LastName=data.lastName,PasswordHash = hash, Passwordsalt = salt, CreatedTime = DateTime.UtcNow };
 
         db.Users.Add(user);
         await db.SaveChangesAsync();
@@ -60,8 +60,9 @@ public class AuthService
             return ServiceResult.Fail("Hibás a jelszó");
 
         var token=jwt.CreateToken(user);
+        var response=new{FirstName=user.FirstName,LastName=user.LastName, Token=token};
 
-        return ServiceResult.Success(token);
+        return ServiceResult.Success(response);
         
     }
     public (byte[] hash, byte[] salt) HashPassword(string pass)

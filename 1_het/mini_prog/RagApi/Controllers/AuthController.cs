@@ -25,6 +25,6 @@ public class AuthController : ControllerBase
     {
         var result=await authService.LoginAsync(data);
         if(!result.Ok) return BadRequest(result.Error);
-        return Ok(new { token = result.Data });
+        return Ok(result.Data);
     }
 }

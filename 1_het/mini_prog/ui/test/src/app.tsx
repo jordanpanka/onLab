@@ -8,7 +8,7 @@ const HEADER_H = 56;
 export function App() {
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("bla bla bla");
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<FileList>();
   const [showWindow, setShowwindow] = useState(false);
   const [uploadResult, setUploadResult] = useState("");
 
