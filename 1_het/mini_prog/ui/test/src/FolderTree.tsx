@@ -11,11 +11,7 @@ export type FolderNode = {
     folders: FolderNode[],
     files: FileItem[]
 }
-export function FolderTree({ node, level, onFileClick, }: { node: FolderNode, level: number, onFileClick: (file: FileItem) => void }) {
-    const hasChildren = node.folders.length > 0 || node.files.length > 0;
-    const [open, setOpen] = useState(level <= 1);
-
-    function buildTree(files: FileItem[]): FolderNode {
+ export function buildTree(files: FileItem[]): FolderNode {
         const root: FolderNode = { id: "root", name: "root", folders: [], files: [] }
         function getOrCreatefolder(parent: FolderNode, name: string) {
             let f = parent.folders.find(x => x.name == name);
@@ -42,6 +38,9 @@ export function FolderTree({ node, level, onFileClick, }: { node: FolderNode, le
         return root;
 
     }
+export function FolderTree({ node, level, onFileClick, }: { node: FolderNode, level: number, onFileClick: (file: FileItem) => void }) {
+    const hasChildren = node.folders.length > 0 || node.files.length > 0;
+    const [open, setOpen] = useState(level <= 1);
 
     return (<>
         {node.id !== "root" && (
