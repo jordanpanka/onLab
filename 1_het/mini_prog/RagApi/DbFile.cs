@@ -10,6 +10,9 @@ namespace ef
         public int ProjectID {get; set;}
         public string Name {get; set;}
         public string path {get;set;}
+     
+        [ForeignKey("ProjectID")]
+        public DbProject Project;
 
     }
 }

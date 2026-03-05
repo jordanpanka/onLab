@@ -5,9 +5,15 @@ namespace ef
     [Table("Project")]
     public class DbProject
     {
-         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int ID { get; set; }
+        public int InvestigationID {get; set;}
         public string Name { get; set;}
         public string Description {get; set;}
+        public List<DbFile> Files {get; set;}
+
+        [ForeignKey("InvID")]
+        public DbInvestigation Investigation;
+
     }
 }

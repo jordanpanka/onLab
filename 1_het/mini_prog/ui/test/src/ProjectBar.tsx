@@ -9,6 +9,7 @@ import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
 type Project = {
     id: number,
+    invid: number,
     name: string,
     description: string
 }
@@ -23,6 +24,7 @@ const closedWidth = 60;
 const HEADER_H = 64
 export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => void }) {
     const [search, setSearch] = useState("");
+    const [newInvestigation,setNewInvestigation]=useState<Investigation>();
     const [newProject, setNewProject] = useState<Project>();
     const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>([]);
     const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>([]);
@@ -39,18 +41,25 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
 
     }*/
     async function addProject() {
-        const response = await fetch("api/projects/add", {
+        const response = await fetch("api/investigations/projects/add", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ newProject })
         });
     }
-    useEffect(() => { loadProjects(selectedInvId); }, []);
+    async function addInvestigation(){
+        const response=await fetch("api/investigations/add", {
+            method: "POST",
+            headers:{"Content-Type": "application/json"},
+            body: JSON.stringify({newInvestigation})
+        })
+    }
+    useEffect(() => { loadInvestigations(); }, []);
     async function loadInvestigations(){
-        const response=await fetch("api/investigattions")
+        const response=await fetch("api/investigations/load")
     }
     async function loadProjects(id: number) {
-        const response = await fetch("api/projects/load", {
+        const response = await fetch("api/investigations/projects/load", {
             method: "Get",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ id })
@@ -60,7 +69,7 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
     }
     //return the files of a project
     async function loadFiles(id: number){
-        const response=await fetch("api/projects/files/load",{
+        const response=await fetch("api/investigations/projects/files/load",{
             method:"Get",
             headers: {"Content-Type":"application/json"},
             body:JSON.stringify({id})
@@ -142,11 +151,6 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
                             </Collapse>
                         </div>
                     )
-
-
-
-
-
                 })}
             </List>
         </Drawer >

@@ -14,6 +14,7 @@ namespace ef
         public byte[]  PasswordHash { get; set; }
         public byte[] Passwordsalt { get; set; }
         public DateTime CreatedTime { get; set; }
+        public List<DbInvestigation> Investigations {get; set;}
 
     }
 
