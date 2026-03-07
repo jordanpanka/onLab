@@ -1,5 +1,6 @@
 using Azure;
 using ef;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using UglyToad.PdfPig.Graphics.Colors;
 [ApiController]
@@ -8,14 +9,16 @@ public class ProjectController : ControllerBase
 {
     private readonly CodeDbContext codeDbContext;
     private readonly ProjectService projectService;
-
+    [Authorize]
     [HttpPost("add")]
     public async Task<IActionResult> AddInvestigation([FromBody] InvestigationData inv)
     {
-        var response= await projectService.AddInvAsync(inv);
+        var userId = int.Parse(User.FindFirst("uid")!.Value);
+        var response= await projectService.AddInvAsync(userId,inv);
         if(!response.Ok) return BadRequest(response.Error);
         return Ok();
     }
+    [Authorize]
     [HttpPost("projects/add")]
     public async Task<IActionResult> AddProject([FromBody] ProjectData data)
     {
@@ -23,6 +26,7 @@ public class ProjectController : ControllerBase
         if(!response.Ok) return BadRequest(response.Error);
         return Ok();
     }
+    [Authorize]
     [HttpGet("projects/files/add")]
     public async Task<IActionResult> AddFiles([FromBody]FilesData data)
     {
@@ -30,6 +34,7 @@ public class ProjectController : ControllerBase
         if(!response.Ok) return BadRequest(response.Error);
         return Ok();
     }
+    [Authorize]
     [HttpGet("load")]
     public async Task<IActionResult> GetInvestigations([FromBody] UserID data)
     {
@@ -37,6 +42,7 @@ public class ProjectController : ControllerBase
         if(!response.Ok) return BadRequest(response.Error);
         return Ok(response.Data);
     }
+    [Authorize]
     [HttpGet("projects/load")]
     public async Task<IActionResult> GetProjects([FromBody] InvestigationID data)
     {
@@ -44,6 +50,7 @@ public class ProjectController : ControllerBase
         if(!response.Ok) return BadRequest(response.Error);
         return Ok(response.Data);
     }
+    [Authorize]
     [HttpGet("projects/files/load")]
     public async Task<IActionResult> GetFiles([FromBody] ProjectID data)
     {
@@ -56,8 +63,8 @@ public class ProjectController : ControllerBase
 
 }
 public record FilesData(int id,int projectId);
-public record ProjectData(int id,int invId, string name, string description);
-public record InvestigationData(int id,int userId,string name, string description);
+public record ProjectData(int invid,string name, string description);
+public record InvestigationData(string name, string description);
 public record UserID(int id);
 public record InvestigationID(int id);
 public record ProjectID(int id);

@@ -2,18 +2,16 @@ import { Box, Collapse, IconButton, InputAdornment, List, ListItemButton, ListIt
 import Drawer from "@mui/material/Drawer";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import SearchIcon from "@mui/icons-material/Search";
-
 import { useEffect, useState } from "preact/hooks"
-import { idID } from "@mui/material/locale";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
-type Project = {
+export type Project = {
     id: number,
     invid: number,
     name: string,
     description: string
 }
-type Investigation = {
+export type Investigation = {
     id: number,
     name: string,
     description: string
@@ -33,13 +31,7 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
     const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
     const [open, setOpen] = useState(true);
-    /*async function onClick() {
-        const response = await fetch("api/projects", {
-            method: "POST",
-            body: localStorage.getItem("token")
-        });
-
-    }*/
+    
     async function addProject() {
         const response = await fetch("api/investigations/projects/add", {
             method: "POST",
@@ -56,8 +48,11 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
     }
     useEffect(() => { loadInvestigations(); }, []);
     async function loadInvestigations(){
-        const response=await fetch("api/investigations/load")
+        const response=await fetch("api/investigations/load");
+        const data=await response.json();
+        setInvestigations(data);
     }
+    //return the projects of the investigation
     async function loadProjects(id: number) {
         const response = await fetch("api/investigations/projects/load", {
             method: "Get",
@@ -74,6 +69,8 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
             headers: {"Content-Type":"application/json"},
             body:JSON.stringify({id})
         })
+        const data=await response.json();
+        setFilesByProjId(data);
     }
     return (<>
         <Drawer variant="persistent" anchor="left" open={open} sx={{
@@ -92,7 +89,7 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
                     lineHeight: 1,
                     fontFamily: "'Inter', sans-serif",
                 }}>My Ivestigations</Typography>
-                <IconButton onClick={addProject}><CreateNewFolderIcon /></IconButton>
+                <IconButton onClick={addInvestigation}><CreateNewFolderIcon /></IconButton>
             </Box>
 
             <Box sx={{ display: "flex", marginLeft: 2, marginRight: 2 }}>

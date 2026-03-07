@@ -1,16 +1,29 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { UploadFile } from './uploadFile';
 import './app.css'
 import { ProjectBar } from './ProjectBar';
 import { AppBar, Box, IconButton, Toolbar, Typography } from '@mui/material';
 import LogoutIcon from "@mui/icons-material/Logout";
+import { jwtDecode as decodeJwt } from "jwt-decode";
+import { route } from 'preact-router';
+
 const HEADER_H = 56;
+export type JwtPayload = {
+  uid: string
+  email: string
+  firstname: string
+  lastname: string
+}
 export function App() {
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("bla bla bla");
   const [file, setFile] = useState<FileList>();
-  const [showWindow, setShowwindow] = useState(false);
+  const [showWindowFile, setShowwindowFile] = useState(false);
+  const [showWindowInvestigation, setShowwindowInvestigation] = useState(false);
+  const [showWindowProject, setShowWindowProject] = useState(false);
   const [uploadResult, setUploadResult] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
 
   async function send() {
     setAnswer("Thinking...");
@@ -31,17 +44,35 @@ export function App() {
       setUploadResult("Előbb válassz ki egy fájlt!");
       return;
     }
+
     const data = new FormData();
-    data.append("document", file);
-
-
-    const response = await fetch("/api/docs", {
+    for (const f of Array.from(file ?? [])) {
+      data.append("files", f);
+      data.append("paths", f.webkitRelativePath);
+    }
+    const token=localStorage.getItem("token");
+    const response = await fetch("/api/investigations/projects/files/upload", {
       method: "POST",
+      headers:{"Authorization": "Bearer " + token},
       body: data
     })
-    setShowwindow(false);
+    setShowwindowFile(false);
 
   }
+  function setName() {
+    const token = localStorage.getItem("token");
+    if (!token) return; // nincs bejelentkezve
+
+    const decoded = decodeJwt<JwtPayload>(token);
+
+    setFirstName(decoded.firstname);
+    setLastName(decoded.lastname);
+  }
+  function logout(){
+    localStorage.removeItem("token");
+    route("/login",true);
+  }
+  useEffect(() => setName(), []);
   return (
     <>
       <AppBar
@@ -55,11 +86,11 @@ export function App() {
         }}
       >
         <Toolbar sx={{ height: HEADER_H }}>
-          <Box sx={{ display: 'flex', alignItems: "center",justifyContent:"space-between",width: "100%", }}>
+          <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%", }}>
             <Typography sx={{ fontWeight: 600 }}>Mini chat</Typography>
-            <Box sx={{ display: 'flex', alignItems: "center", gap:2 }}>
-              <Typography>Vezetéknév Keresztnév</Typography>
-              <IconButton><LogoutIcon /></IconButton>
+            <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
+              <Typography>{lastName} {firstName}</Typography>
+              <IconButton onClick={logout}><LogoutIcon /></IconButton>
             </Box>
           </Box>
 
@@ -68,19 +99,19 @@ export function App() {
       </AppBar>
 
       {/* SIDEBAR */}
-      <ProjectBar />
+     
       <Box>
         <div className="input-row">
           <input className="prompt" value={prompt} onChange={(e) => setPrompt(e.currentTarget.value)} placeholder={"What do you want to know?"}>
           </input>
-          <button className="link-btn" onClick={() => setShowwindow(true)}><span className="material-icons">attach_file</span></button>
+          <button className="link-btn" onClick={() => setShowwindowFile(true)}><span className="material-icons">attach_file</span></button>
           <button className="send-btn" onClick={send}>Send</button>
         </div>
         <h2>Answer</h2>
         <div className="answer">
           {answer}
         </div>
-        {showWindow && <div className="modal-overlay">
+        {showWindowFile && <div className="modal-overlay">
           <div className="modal-window">
             <UploadFile setFile={setFile} link={link} answer={uploadResult}></UploadFile>
           </div>
@@ -90,3 +121,4 @@ export function App() {
     </>
   )
 }
+

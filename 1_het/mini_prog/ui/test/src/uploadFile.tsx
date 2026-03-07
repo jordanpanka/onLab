@@ -8,7 +8,11 @@ type UploadFileProps = {
 
 export function UploadFile({ setFile, link, answer }: UploadFileProps) {
     return <div>
-        <input type="file" multiple onChange={(e) => {
+        <input 
+        type="file" 
+        multiple 
+        /*webkitdirectory="" */
+        onChange={(e) => {
             const files = e.currentTarget.files;
             if (files) setFile(files);
         }}></input>

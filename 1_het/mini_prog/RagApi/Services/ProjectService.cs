@@ -14,14 +14,14 @@ public class ProjectService
     {
         codeDbContext=db;
     }
-    public async Task<ServiceResult> AddInvAsync(InvestigationData data)
+    public async Task<ServiceResult> AddInvAsync(int userId,InvestigationData data)
     {
         //user exist?
-        var exist=await codeDbContext.Users.AnyAsync();
+        var exist=await codeDbContext.Users.AnyAsync(x=>x.ID==userId);
 
         if(!exist) return ServiceResult.Fail("User doesn't exist");
 
-        var inv=new DbInvestigation{Name=data.name, Description=data.description};
+        var inv=new DbInvestigation{UserID=userId,Name=data.name, Description=data.description};
 
         codeDbContext.Investigations.Add(inv);
         await codeDbContext.SaveChangesAsync();
@@ -30,15 +30,14 @@ public class ProjectService
     public async Task<ServiceResult> AddProjectAsync(ProjectData data)
     {
         //
-        var exist=await codeDbContext.Projects.AnyAsync(x=>x.InvestigationID==data.invId);
+        var exist=await codeDbContext.Projects.AnyAsync(x=>x.InvestigationID==data.invid);
         if(!exist) return ServiceResult.Fail("Investigation doesn't exist");
 
-        var project=new DbProject{InvestigationID=data.invId,Name=data.name,Description=data.description};
+        var project=new DbProject{InvestigationID=data.invid,Name=data.name,Description=data.description};
         codeDbContext.Projects.Add(project);
         await codeDbContext.SaveChangesAsync();
         return ServiceResult.Success();
-    }
-    
+    } 
     public async Task<ServiceResult> AddFilesAsync(FilesData data)
     {
         var exist=await codeDbContext.Projects.AnyAsync(x=>x.ID==data.projectId);
@@ -78,6 +77,5 @@ public class ProjectService
 
         return ServiceResult.Success(JsonSerializer.Serialize(files));
     }
-
 
 }
