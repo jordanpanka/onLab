@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'preact/hooks'
 import { UploadFile } from './uploadFile';
 import './app.css'
-import { ProjectBar } from './ProjectBar';
+import { ProjectBar, type Project } from './ProjectBar';
 import { AppBar, Box, IconButton, Toolbar, Typography } from '@mui/material';
 import LogoutIcon from "@mui/icons-material/Logout";
 import { jwtDecode as decodeJwt } from "jwt-decode";
 import { route } from 'preact-router';
+import { NewProject } from './NewProject';
+import { RightPanel } from './RightPanel';
 
 const HEADER_H = 56;
 export type JwtPayload = {
@@ -19,12 +21,14 @@ export function App() {
   const [answer, setAnswer] = useState("bla bla bla");
   const [file, setFile] = useState<FileList>();
   const [showWindowFile, setShowwindowFile] = useState(false);
-  const [showWindowInvestigation, setShowwindowInvestigation] = useState(false);
-  const [showWindowProject, setShowWindowProject] = useState(false);
   const [uploadResult, setUploadResult] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-
+  //variables for sidebars
+  const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>([]);
+  const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
+  const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
+  const [selectedProject, setSelectedProject]=useState<Project>();
   async function send() {
     setAnswer("Thinking...");
 
@@ -99,7 +103,7 @@ export function App() {
       </AppBar>
 
       {/* SIDEBAR */}
-     
+      <ProjectBar></ProjectBar>
       <Box>
         <div className="input-row">
           <input className="prompt" value={prompt} onChange={(e) => setPrompt(e.currentTarget.value)} placeholder={"What do you want to know?"}>
@@ -116,8 +120,11 @@ export function App() {
             <UploadFile setFile={setFile} link={link} answer={uploadResult}></UploadFile>
           </div>
         </div>}
+       
       </Box>
-
+       {selectedProject &&
+      <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen}></RightPanel>
+       }S
     </>
   )
 }

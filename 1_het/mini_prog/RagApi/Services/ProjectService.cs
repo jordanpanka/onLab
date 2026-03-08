@@ -49,14 +49,22 @@ public class ProjectService
         await codeDbContext.SaveChangesAsync();
         return ServiceResult.Success();
     }
-    public async Task<ServiceResult> GetInvestigationsAsync(UserID data)
+    public async Task<ServiceResult> GetInvestigationsAsync(int data)
     {
-        var exist=await codeDbContext.Users.AnyAsync(x=>x.ID==data.id);
+        var exist=await codeDbContext.Users.AnyAsync(x=>x.ID==data);
         if(!exist) return ServiceResult.Fail("User doesn't exist");
 
-        var investigations=await codeDbContext.Investigations.Where(x=>x.UserID==data.id).ToListAsync();
+        var investigations=await codeDbContext.Investigations
+        .Where(x=>x.UserID==data)
+        .Select(x=>new Investigation
+        {
+            ID=x.ID,
+            Name=x.Name,
+            Description=x.Description
+        })
+        .ToListAsync();
 
-        return ServiceResult.Success(JsonSerializer.Serialize(investigations));
+        return ServiceResult.Success(investigations);
     }
     public async Task<ServiceResult> GetProjectsAsync(InvestigationID data)
     {

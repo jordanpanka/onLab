@@ -5,6 +5,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState } from "preact/hooks"
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
+import { NewProject } from "./NewProject";
 export type Project = {
     id: number,
     invid: number,
@@ -20,9 +21,7 @@ export type Investigation = {
 const openwidth = 240;
 const closedWidth = 60;
 const HEADER_H = 64
-export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => void }) {
-    const [search, setSearch] = useState("");
-    const [newInvestigation,setNewInvestigation]=useState<Investigation>();
+export function ProjectBar(/*{ showWindowInvestigation, setShowWindowInvestigation,onFileClick }: { /*onFileClick: (file: FileItem) => void,showWindowInvestigation: boolean, setShowWindowInvestigation: (b: boolean) => void }*/) {
     const [newProject, setNewProject] = useState<Project>();
     const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>([]);
     const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>([]);
@@ -31,7 +30,8 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
     const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
     const [open, setOpen] = useState(true);
-    
+    const [showInvWindow, setShowinvwindow] = useState(false);
+
     async function addProject() {
         const response = await fetch("api/investigations/projects/add", {
             method: "POST",
@@ -39,17 +39,19 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
             body: JSON.stringify({ newProject })
         });
     }
-    async function addInvestigation(){
-        const response=await fetch("api/investigations/add", {
-            method: "POST",
-            headers:{"Content-Type": "application/json"},
-            body: JSON.stringify({newInvestigation})
-        })
+    async function addInvestigation() {
+        setShowinvwindow(true);
     }
     useEffect(() => { loadInvestigations(); }, []);
-    async function loadInvestigations(){
-        const response=await fetch("api/investigations/load");
-        const data=await response.json();
+    async function loadInvestigations() {
+        const token = localStorage.getItem("token");
+        const response = await fetch("api/investigations/load", {
+            method: "GET",
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        });
+        const data = await response.json();
         setInvestigations(data);
     }
     //return the projects of the investigation
@@ -63,15 +65,15 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
         setProjectsByInvId(data);
     }
     //return the files of a project
-    async function loadFiles(id: number){
-        const response=await fetch("api/investigations/projects/files/load",{
-            method:"Get",
-            headers: {"Content-Type":"application/json"},
-            body:JSON.stringify({id})
+    /*async function loadFiles(id: number) {
+        const response = await fetch("api/investigations/projects/files/load", {
+            method: "Get",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id })
         })
-        const data=await response.json();
+        const data = await response.json();
         setFilesByProjId(data);
-    }
+    }*/
     return (<>
         <Drawer variant="persistent" anchor="left" open={open} sx={{
             width: open ? openwidth : closedWidth, gap: 2, "& .MuiDrawer-paper": {
@@ -104,7 +106,7 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
             <List>
                 {investigations.map(inv => {
                     const isInvOpen = !!invOpen[inv.id];
-
+                    console.log(inv);
                     return (
                         <div key={inv.id}>
                             <ListItemButton onClick={async () => {
@@ -116,7 +118,7 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
                                 {isInvOpen ? <ExpandMore /> : <ExpandLess />}
                             </ListItemButton>
 
-
+                            
                             <Collapse in={isInvOpen} timeout="auto" unmountOnExit>
                                 <List disablePadding dense>
                                     {(projectsByInvId[inv.id] ?? []).map(project => {
@@ -124,10 +126,10 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
                                         const files = filesByProjId[project.id] ?? [];
                                         const tree = buildTree(files);
 
-                                        return (
+                                        /*return (
                                             <div key={project.id}>
                                                 <ListItemButton onClick={async () => {
-                                                    await loadFiles(project.id);
+                                                    await loadConversation(project.id);
                                                     setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
                                                 }}>
                                                     <ListItemText primary={project.name}></ListItemText>
@@ -136,12 +138,12 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
                                                 </ListItemButton>
                                                 <Collapse in={isProjOpen} timeout="auto" unmountOnExit>
                                                     <List disablePadding dense>
-                                                        <FolderTree node={tree} level={1} onFileClick={onFileClick}></FolderTree>
+                                                        
                                                     </List>
                                                 </Collapse>
                                             </div>
 
-                                        )
+                                        )*/
 
                                     })}
                                 </List>
@@ -151,7 +153,11 @@ export function ProjectBar({ onFileClick }: { onFileClick: (file: FileItem) => v
                 })}
             </List>
         </Drawer >
-
+        {showInvWindow && <div className="modal-overlay">
+            <div className="modal-window">
+                <NewProject open={showInvWindow} setOpen={setShowinvwindow} loadInvestigations={loadInvestigations}></NewProject>
+            </div>
+        </div>}
     </>)
 
 }

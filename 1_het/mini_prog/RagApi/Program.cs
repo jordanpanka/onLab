@@ -6,9 +6,10 @@ using ef;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.IdentityModel.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
-
+IdentityModelEventSource.ShowPII = true;
 
 builder.Services.AddHttpClient("default", c =>
 {
@@ -21,7 +22,7 @@ builder.Services.AddDbContext<CodeDbContext>(options =>
 //JWt 
 var jwtKey = builder.Configuration["Jwt:Key"];
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey!);
-
+/*
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -40,11 +41,53 @@ builder.Services
             ClockSkew = TimeSpan.FromMinutes(1)
         };
     });
+*/
+builder.Services
+  .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+  .AddJwtBearer(options =>
+  {
+      options.TokenValidationParameters = new TokenValidationParameters
+      {
+          ValidateIssuer = true,
+          ValidateAudience = true,
+          ValidateLifetime = true,
+          ValidateIssuerSigningKey = true,
 
+          ValidIssuer = builder.Configuration["Jwt:Issuer"],
+          ValidAudience = builder.Configuration["Jwt:Audience"],
+          IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
+
+          ClockSkew = TimeSpan.FromMinutes(1)
+      };
+
+      options.Events = new JwtBearerEvents
+      {
+          OnAuthenticationFailed = context =>
+          {
+              Console.WriteLine("JWT ERROR: " + context.Exception.Message);
+              return Task.CompletedTask;
+          }
+      };
+      options.Events = new JwtBearerEvents
+      {
+          OnMessageReceived = context =>
+            {
+      Console.WriteLine("RAW AUTH HEADER: " + context.Request.Headers.Authorization);
+      return Task.CompletedTask;
+  },
+          OnAuthenticationFailed = context =>
+            {
+      Console.WriteLine("JWT ERROR: " + context.Exception);
+      return Task.CompletedTask;
+  }
+      };
+  });
 builder.Services.AddAuthorization();
 //add services
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<ProjectService>();
+builder.Services.AddScoped<FileService>();
 
 //controllers
 builder.Services.AddControllers();

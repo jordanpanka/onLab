@@ -76,10 +76,6 @@
               "target": "Package",
               "version": "[9.0.4, )"
             },
-            "Microsoft.IdentityModel.Tokens": {
-              "target": "Package",
-              "version": "[8.16.0, )"
-            },
             "PdfPig": {
               "target": "Package",
               "version": "[0.1.13, )"

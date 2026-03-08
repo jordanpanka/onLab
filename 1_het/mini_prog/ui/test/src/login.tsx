@@ -17,7 +17,7 @@ export function Login() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(
                     {
-                        email, password, firstName,lastName
+                        email, password, firstName, lastName
                     }
                 )
             });
@@ -30,13 +30,13 @@ export function Login() {
 
         }
         else {
-            const nothing="";
-            const nothing2="";
+            const nothing = "";
+            const nothing2 = "";
             const r = await fetch("api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    email, password, firstName,lastName
+                    email, password, firstName, lastName
                 })
             });
             if (!r.ok) {
@@ -45,6 +45,11 @@ export function Login() {
                 return;
             }
             const data = await r.json();
+            console.log("LOGIN DATA:", data);
+            console.log("TOKEN TYPE:", typeof data.token);
+            console.log("TOKEN RAW:", data.token);
+            console.log("TOKEN PARTS:", data.token?.split("."));
+            console.log("TOKEN PART COUNT:", data.token?.split(".")?.length);
             localStorage.setItem("token", data.token);
             setFirstName(data.firstName);
             setLastName(data.lastName);
