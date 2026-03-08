@@ -3,9 +3,13 @@ import Drawer from "@mui/material/Drawer";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState } from "preact/hooks"
-import { ExpandLess, ExpandMore } from "@mui/icons-material";
+import { AddCircle, ExpandLess, ExpandMore } from "@mui/icons-material";
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
 import { NewProject } from "./NewProject";
+import FolderOpenIcon from "@mui/icons-material/FolderOpen";
+import FolderIcon from "@mui/icons-material/Folder";
+import FolderTwoToneIcon from "@mui/icons-material/FolderTwoTone";
+import FolderOpenTwoToneIcon from "@mui/icons-material/FolderOpenTwoTone";
 export type Project = {
     id: number,
     invid: number,
@@ -21,26 +25,23 @@ export type Investigation = {
 const openwidth = 240;
 const closedWidth = 60;
 const HEADER_H = 64
-export function ProjectBar(/*{ showWindowInvestigation, setShowWindowInvestigation,onFileClick }: { /*onFileClick: (file: FileItem) => void,showWindowInvestigation: boolean, setShowWindowInvestigation: (b: boolean) => void }*/) {
+export function ProjectBar() {
     const [newProject, setNewProject] = useState<Project>();
-    const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>([]);
-    const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>([]);
+    const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>({});
+    const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>({});
     const [investigations, setInvestigations] = useState<Investigation[]>([]);
     const [selectedInvId, setSelectedInvId] = useState<number>(-1);
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
     const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
     const [open, setOpen] = useState(true);
-    const [showInvWindow, setShowinvwindow] = useState(false);
+    const [showInvWindow, setShowInvwindow] = useState(false);
+    const [showProjWindow, setShowProjwindow] = useState(false);
 
     async function addProject() {
-        const response = await fetch("api/investigations/projects/add", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ newProject })
-        });
+        setShowProjwindow(true);
     }
     async function addInvestigation() {
-        setShowinvwindow(true);
+        setShowInvwindow(true);
     }
     useEffect(() => { loadInvestigations(); }, []);
     async function loadInvestigations() {
@@ -56,13 +57,20 @@ export function ProjectBar(/*{ showWindowInvestigation, setShowWindowInvestigati
     }
     //return the projects of the investigation
     async function loadProjects(id: number) {
+        const token=localStorage.getItem("token");
         const response = await fetch("api/investigations/projects/load", {
-            method: "Get",
-            headers: { "Content-Type": "application/json" },
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
             body: JSON.stringify({ id })
         });
         const data = await response.json();
-        setProjectsByInvId(data);
+        setProjectsByInvId(prev => ({
+        ...prev,
+        [id]: data
+    }));
     }
     //return the files of a project
     /*async function loadFiles(id: number) {
@@ -91,7 +99,7 @@ export function ProjectBar(/*{ showWindowInvestigation, setShowWindowInvestigati
                     lineHeight: 1,
                     fontFamily: "'Inter', sans-serif",
                 }}>My Ivestigations</Typography>
-                <IconButton onClick={addInvestigation}><CreateNewFolderIcon /></IconButton>
+                <IconButton onClick={addInvestigation}><AddCircle></AddCircle></IconButton>
             </Box>
 
             <Box sx={{ display: "flex", marginLeft: 2, marginRight: 2 }}>
@@ -114,11 +122,16 @@ export function ProjectBar(/*{ showWindowInvestigation, setShowWindowInvestigati
                                 setInvOpen(s => ({ ...s, [inv.id]: !s[inv.id] }));
                                 setSelectedInvId(inv.id);
                             }}>
+                                {/*isInvOpen ? <ExpandMore /> : <ExpandLess />*/}
+                                {isInvOpen ? "🧑‍💻": "💻"}
+                               
                                 <ListItemText primary={inv.name}></ListItemText>
-                                {isInvOpen ? <ExpandMore /> : <ExpandLess />}
+                                <IconButton onClick={addProject}>
+                                    <CreateNewFolderIcon />
+                                </IconButton>
                             </ListItemButton>
 
-                            
+
                             <Collapse in={isInvOpen} timeout="auto" unmountOnExit>
                                 <List disablePadding dense>
                                     {(projectsByInvId[inv.id] ?? []).map(project => {
@@ -126,14 +139,15 @@ export function ProjectBar(/*{ showWindowInvestigation, setShowWindowInvestigati
                                         const files = filesByProjId[project.id] ?? [];
                                         const tree = buildTree(files);
 
-                                        /*return (
+                                        return (
                                             <div key={project.id}>
-                                                <ListItemButton onClick={async () => {
-                                                    await loadConversation(project.id);
+                                                <ListItemButton sx={{ pl: 4 }} onClick={async () => {
+                                                    //await loadConversation(project.id);
                                                     setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
                                                 }}>
+                                                    {isProjOpen ? "📂" : "📁"}
                                                     <ListItemText primary={project.name}></ListItemText>
-                                                    {isProjOpen ? <ExpandMore /> : <ExpandLess />}
+                                                    {/*isProjOpen ? <ExpandMore /> : <ExpandLess />*/}
 
                                                 </ListItemButton>
                                                 <Collapse in={isProjOpen} timeout="auto" unmountOnExit>
@@ -143,7 +157,7 @@ export function ProjectBar(/*{ showWindowInvestigation, setShowWindowInvestigati
                                                 </Collapse>
                                             </div>
 
-                                        )*/
+                                        )
 
                                     })}
                                 </List>
@@ -155,9 +169,14 @@ export function ProjectBar(/*{ showWindowInvestigation, setShowWindowInvestigati
         </Drawer >
         {showInvWindow && <div className="modal-overlay">
             <div className="modal-window">
-                <NewProject open={showInvWindow} setOpen={setShowinvwindow} loadInvestigations={loadInvestigations}></NewProject>
+                <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
             </div>
         </div>}
+        {showProjWindow && <div className="modal-overlay">
+            <div className="modal-window">
+                <NewProject isInv={false} invId={selectedInvId} open={showProjWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
+            </div>
+        </div >}
     </>)
 
 }

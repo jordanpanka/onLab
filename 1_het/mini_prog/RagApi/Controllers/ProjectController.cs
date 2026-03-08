@@ -26,6 +26,9 @@ public class ProjectController : ControllerBase
     [HttpPost("projects/add")]
     public async Task<IActionResult> AddProject([FromBody] ProjectData data)
     {
+        var uidClaim = User.FindFirst("uid");
+        if (uidClaim == null) return Unauthorized("Missing uid claim");
+        
         var response = await projectService.AddProjectAsync(data);
         if (!response.Ok) return BadRequest(response.Error);
         return Ok();
@@ -52,7 +55,7 @@ public class ProjectController : ControllerBase
         return Ok(response.Data);
     }
     [Authorize]
-    [HttpGet("projects/load")]
+    [HttpPost("projects/load")]
     public async Task<IActionResult> GetProjects([FromBody] InvestigationID data)
     {
         var uidClaim = User.FindFirst("uid");
