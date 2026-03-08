@@ -5,7 +5,7 @@ import { ProjectBar, type Project } from './ProjectBar';
 import { AppBar, Box, IconButton, Toolbar, Typography } from '@mui/material';
 import LogoutIcon from "@mui/icons-material/Logout";
 import { jwtDecode as decodeJwt } from "jwt-decode";
-import { route } from 'preact-router';
+import { useLocation } from "preact-iso";
 import { NewProject } from './NewProject';
 import { RightPanel } from './RightPanel';
 
@@ -25,10 +25,17 @@ export function App() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   //variables for sidebars
-  const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>([]);
+  const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>({});
   const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
   const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
   const [selectedProject, setSelectedProject]=useState<Project>();
+  const { route } = useLocation();
+  useEffect(() => {
+  if (!localStorage.getItem("token")) {
+    
+    route("/login");
+  }
+}, []);
   async function send() {
     setAnswer("Thinking...");
 
@@ -73,6 +80,7 @@ export function App() {
     setLastName(decoded.lastname);
   }
   function logout(){
+    
     localStorage.removeItem("token");
     route("/login",true);
   }
@@ -124,7 +132,7 @@ export function App() {
       </Box>
        {selectedProject &&
       <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen}></RightPanel>
-       }S
+       }
     </>
   )
 }
