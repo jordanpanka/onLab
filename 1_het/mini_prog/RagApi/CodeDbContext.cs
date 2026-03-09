@@ -29,6 +29,10 @@ public class CodeDbContext : DbContext
             .HasForeignKey(f=>f.InvestigationID)
             .OnDelete(DeleteBehavior.Cascade);
 
-        
+        modelBuilder.Entity<DbFile>()
+            .HasOne(p=>p.Project)
+            .WithMany(f=>f.Files)
+            .HasForeignKey(f=>f.ProjectID)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
