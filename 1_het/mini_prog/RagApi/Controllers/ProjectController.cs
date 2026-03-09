@@ -65,12 +65,24 @@ public class ProjectController : ControllerBase
         return Ok(response.Data);
     }
     [Authorize]
-    [HttpGet("projects/files/load")]
+    [HttpPost("projects/files/load")]
     public async Task<IActionResult> GetFiles([FromBody] ProjectID data)
     {
+        var uidClaim = User.FindFirst("uid");
+        if (uidClaim == null) return Unauthorized("Missing uid claim");
         var response = await projectService.GetFilesAsync(data);
         if (!response.Ok) return BadRequest(response.Error);
         return Ok(response.Data);
+    }
+    [Authorize]
+    [HttpPost("delete")]
+    public async Task<IActionResult> DeleteInvetigations([FromBody] int invid)
+    {
+        var uidClaim = User.FindFirst("uid");
+        if (uidClaim == null) return Unauthorized("Missing uid claim");
+        var response=await projectService.DeleteInvestigationsAsync(invid);
+        if(response.Ok) return BadRequest(response.Error);
+        return Ok();
     }
 
 

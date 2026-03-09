@@ -4,7 +4,11 @@ import { useState } from "preact/hooks";
 import FolderIcon from "@mui/icons-material/Folder";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFile";
 
-export type FileItem = { id: string, name: string, fullPath: string }
+export type FileItem = { 
+ id:number,
+ name:string,
+ relativePath:string,
+ }
 export type FolderNode = {
     id: string,
     name: string,
@@ -22,13 +26,13 @@ export type FolderNode = {
             return f;
         }
         for (const f of files) {
-            const parts = f.fullPath.split("/").filter(Boolean);
+            const parts = f.relativePath.split("/").filter(Boolean);
             const fileName = parts.pop()!;
             let current = root;
 
             for (const folderName of parts) current = getOrCreatefolder(current, folderName);
 
-            current.files.push({ id: f.id, name: fileName, fullPath: f.fullPath })
+            current.files.push({ id: f.id, name: fileName, relativePath: f.relativePath })
         }
         const sortNode = (node: FolderNode) => {
             node.folders.sort((a, b) => a.name.localeCompare(b.name));
@@ -63,7 +67,7 @@ export function FolderTree({ node, level, onFileClick, }: { node: FolderNode, le
             {node.files.map(file => (
                 <ListItemButton key={file.id} sx={{ pl: 2 + (level + 1) * 2 }} onClick={() => { onFileClick(file) }}>
                     <InsertDriveFileIcon fontSize="small" style={{ marginRight: 8 }} />
-                    <ListItemText primary={file.name} secondary={file.fullPath} />
+                    <ListItemText primary={file.name} />
 
                 </ListItemButton>
             ))}

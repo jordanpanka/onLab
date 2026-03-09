@@ -23,7 +23,7 @@ public class FileService
 
         return path;
     }
-    public async Task<ServiceResult> UploadAsync(ProjectID pid, List<IFormFile> files, List<string> paths)
+    public async Task<ServiceResult> UploadAsync(int pid, List<IFormFile> files, List<string> paths)
     {
         if(files.Count==0 || paths.Count==0)
             return ServiceResult.Fail("Files and paths count doesn't exist.");
@@ -32,7 +32,7 @@ public class FileService
         {
             return ServiceResult.Fail("The number of files and paths doesn1t match.");
         }
-        var projexist=await codeDbContext.Projects.AnyAsync(x=>x.ID==pid.id);
+        var projexist=await codeDbContext.Projects.AnyAsync(x=>x.ID==pid);
         if(!projexist) return ServiceResult.Fail("The project doesn't exist.");
 
         for(int i=0; i<files.Count; i++)
@@ -56,7 +56,7 @@ public class FileService
     }
 
 
-    public async Task<ServiceResult> SaveFileAsZip(ProjectID pid, IFormFile file, string path)
+    public async Task<ServiceResult> SaveFileAsZip(int pid, IFormFile file, string path)
     {
         using var archive = new ZipArchive(file.OpenReadStream(), ZipArchiveMode.Read);
 
@@ -71,7 +71,7 @@ public class FileService
 
             var dbFile = new DbFile
             {
-                ProjectID = pid.id,
+                ProjectID = pid,
                 Name = entry.Name,
                 RelativePath = entryRelativePath,
                 StoragePath ="",
@@ -85,9 +85,9 @@ public class FileService
         return ServiceResult.Success();
         
     }
-    public async Task<ServiceResult> SaveFileAsNormal(ProjectID pid, IFormFile file, string path)
+    public async Task<ServiceResult> SaveFileAsNormal(int pid, IFormFile file, string path)
     {
-        var fileSave=new DbFile{ProjectID=pid.id,Name=file.FileName, RelativePath=NormalizeRelativePath(path),StoragePath="", Size=file.Length, ContentType=file.ContentType , Extension=Path.GetExtension(file.FileName)};
+        var fileSave=new DbFile{ProjectID=pid,Name=file.FileName, RelativePath=NormalizeRelativePath(path),StoragePath="", Size=file.Length, ContentType=file.ContentType , Extension=Path.GetExtension(file.FileName)};
         codeDbContext.Files.Add(fileSave);
         return ServiceResult.Success();
     }

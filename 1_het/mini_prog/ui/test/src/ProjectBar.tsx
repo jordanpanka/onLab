@@ -2,14 +2,11 @@ import { Box, Collapse, IconButton, InputAdornment, List, ListItemButton, ListIt
 import Drawer from "@mui/material/Drawer";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import SearchIcon from "@mui/icons-material/Search";
-import { useEffect, useState } from "preact/hooks"
-import { AddCircle, ExpandLess, ExpandMore } from "@mui/icons-material";
+import { useEffect, useState, type Dispatch, type StateUpdater } from "preact/hooks"
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
 import { NewProject } from "./NewProject";
-import FolderOpenIcon from "@mui/icons-material/FolderOpen";
-import FolderIcon from "@mui/icons-material/Folder";
-import FolderTwoToneIcon from "@mui/icons-material/FolderTwoTone";
-import FolderOpenTwoToneIcon from "@mui/icons-material/FolderOpenTwoTone";
+import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
+import { RowMenu } from "./RowMenu";
 export type Project = {
     id: number,
     invid: number,
@@ -24,18 +21,20 @@ export type Investigation = {
 
 const openwidth = 240;
 const closedWidth = 60;
-const HEADER_H = 64
-export function ProjectBar() {
-    const [newProject, setNewProject] = useState<Project>();
+const HEADER_H = 64;
+export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatch<StateUpdater<Project | undefined>> }
+) {
     const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>({});
     const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>({});
     const [investigations, setInvestigations] = useState<Investigation[]>([]);
     const [selectedInvId, setSelectedInvId] = useState<number>(-1);
+    const [selectedProjectId, setSelectedProjectId] = useState<number>(-1);
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
     const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
     const [open, setOpen] = useState(true);
     const [showInvWindow, setShowInvwindow] = useState(false);
     const [showProjWindow, setShowProjwindow] = useState(false);
+    const [anchor, setAnchor] = useState<HTMLElement | null>(null);
 
     async function addProject() {
         setShowProjwindow(true);
@@ -57,7 +56,7 @@ export function ProjectBar() {
     }
     //return the projects of the investigation
     async function loadProjects(id: number) {
-        const token=localStorage.getItem("token");
+        const token = localStorage.getItem("token");
         const response = await fetch("api/investigations/projects/load", {
             method: "POST",
             headers: {
@@ -68,20 +67,24 @@ export function ProjectBar() {
         });
         const data = await response.json();
         setProjectsByInvId(prev => ({
-        ...prev,
-        [id]: data
-    }));
+            ...prev,
+            [id]: data
+        }));
     }
-    //return the files of a project
-    /*async function loadFiles(id: number) {
-        const response = await fetch("api/investigations/projects/files/load", {
-            method: "Get",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id })
+    async function deleteInvestigation(){
+        const token=localStorage.getItem("token");
+        const response=await fetch("api/investigations/delete",{
+            method:"Post",
+            headers:{"Content-Type": "application/json","Authorization": "Bearer " + token},
+            body: JSON.stringify({selectedInvId})
         })
-        const data = await response.json();
-        setFilesByProjId(data);
-    }*/
+        
+    }
+    //open menu
+    function openInvMenu(e: MouseEvent) {
+        e.stopPropagation();
+        setAnchor(e.currentTarget as HTMLElement);
+    }
     return (<>
         <Drawer variant="persistent" anchor="left" open={open} sx={{
             width: open ? openwidth : closedWidth, gap: 2, "& .MuiDrawer-paper": {
@@ -99,11 +102,11 @@ export function ProjectBar() {
                     lineHeight: 1,
                     fontFamily: "'Inter', sans-serif",
                 }}>My Ivestigations</Typography>
-                <IconButton onClick={addInvestigation}><AddCircle></AddCircle></IconButton>
+                <IconButton onClick={addInvestigation}>+</IconButton>
             </Box>
 
             <Box sx={{ display: "flex", marginLeft: 2, marginRight: 2 }}>
-                <TextField size="small" placeholder="Search..." InputProps={{
+                <TextField size="small" placeholder="Search..." sx={{borderradius: 3}}InputProps={{
                     endAdornment: (<InputAdornment position="end"> <IconButton>
                         <SearchIcon />
                     </IconButton> </InputAdornment>),
@@ -117,18 +120,34 @@ export function ProjectBar() {
                     console.log(inv);
                     return (
                         <div key={inv.id}>
-                            <ListItemButton onClick={async () => {
+
+                            <ListItemButton sx={{
+                                gap: 1,
+                                borderRadius: 1,
+                                mx: 0.5,
+                                "&:hover": {
+                                    backgroundColor: "#f5f5f5"
+                                },
+                                "&:hover .row-menu": {
+                                    opacity: 1
+                                }
+                            }} onClick={async () => {
                                 await loadProjects(inv.id);
                                 setInvOpen(s => ({ ...s, [inv.id]: !s[inv.id] }));
                                 setSelectedInvId(inv.id);
                             }}>
                                 {/*isInvOpen ? <ExpandMore /> : <ExpandLess />*/}
-                                {isInvOpen ? "🧑‍💻": "💻"}
-                               
+                                <span style={{ fontFamily: "monospace", fontSize: 16 }}>{isInvOpen ? "><" : "<>"}</span>
                                 <ListItemText primary={inv.name}></ListItemText>
-                                <IconButton onClick={addProject}>
-                                    <CreateNewFolderIcon />
-                                </IconButton>
+                                <IconButton className="row-menu"
+                                    size="small"
+                                    onClick={(e) => openInvMenu(e)}
+                                    sx={{
+                                        p: 0.5,
+                                        opacity: 0,
+                                        transition: "opacity 0.15s ease"
+                                    }}><MoreHorizIcon /></IconButton>
+
                             </ListItemButton>
 
 
@@ -141,18 +160,40 @@ export function ProjectBar() {
 
                                         return (
                                             <div key={project.id}>
-                                                <ListItemButton sx={{ pl: 4 }} onClick={async () => {
+                                                <ListItemButton sx={{
+                                                    pl: 4, gap: 1, py: 0,
+                                                    borderRadius: 1,
+                                                    "&:hover .row-menu": {
+                                                        opacity: 1
+                                                    }
+                                                }} onClick={async () => {
                                                     //await loadConversation(project.id);
                                                     setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
+                                                    setSelectedProjectId(project.id);
+                                                    setSelectedProject(project);
                                                 }}>
                                                     {isProjOpen ? "📂" : "📁"}
-                                                    <ListItemText primary={project.name}></ListItemText>
-                                                    {/*isProjOpen ? <ExpandMore /> : <ExpandLess />*/}
+                                                    <ListItemText sx={{ my: 0 }} primary={project.name}></ListItemText>
 
+                                                    <IconButton
+                                                        className="row-menu"
+                                                        size="small"
+                                                        onClick={(e) => openInvMenu(e)}
+                                                        sx={{
+                                                            p: 0,
+                                                            width: 20,
+                                                            height: 20,
+                                                            opacity: 0,
+                                                            transition: "opacity 0.15s ease"
+                                                        }}
+                                                    >
+                                                        <MoreHorizIcon sx={{ fontSize: 16 }} />
+                                                    </IconButton>
+                                                    <RowMenu anchor={anchor} setAnchor={setAnchor} addInv={addInvestigation}></RowMenu>
                                                 </ListItemButton>
                                                 <Collapse in={isProjOpen} timeout="auto" unmountOnExit>
                                                     <List disablePadding dense>
-                                                        
+
                                                     </List>
                                                 </Collapse>
                                             </div>

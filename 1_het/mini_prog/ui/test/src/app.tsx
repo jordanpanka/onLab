@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'preact/hooks'
-import { UploadFile } from './uploadFile';
 import './app.css'
 import { ProjectBar, type Project } from './ProjectBar';
-import { AppBar, Box, IconButton, Toolbar, Typography } from '@mui/material';
+import { AppBar, Avatar, Box, IconButton, Toolbar, Typography } from '@mui/material';
 import LogoutIcon from "@mui/icons-material/Logout";
 import { jwtDecode as decodeJwt } from "jwt-decode";
 import { useLocation } from "preact-iso";
-import { NewProject } from './NewProject';
 import { RightPanel } from './RightPanel';
+import avatar from "./assets/avatar.png";
 
 const HEADER_H = 56;
 export type JwtPayload = {
@@ -89,7 +88,7 @@ export function App() {
     <>
       <AppBar
         position="fixed"
-        elevation={1}
+        elevation={0}
         sx={{
           backgroundColor: "white",
           color: "black",
@@ -99,9 +98,11 @@ export function App() {
       >
         <Toolbar sx={{ height: HEADER_H }}>
           <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%", }}>
-            <Typography sx={{ fontWeight: 600 }}>Mini chat</Typography>
-            <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
+            <Typography sx={{ fontWeight: 600, fontSize:30 }}>Mini chat</Typography>
+            <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}> 
+              <Avatar sx={{ width: 32, height: 32 }}><img src={avatar} alt="Avatar"></img></Avatar>
               <Typography>{lastName} {firstName}</Typography>
+             
               <IconButton onClick={logout}><LogoutIcon /></IconButton>
             </Box>
           </Box>
@@ -111,25 +112,8 @@ export function App() {
       </AppBar>
 
       {/* SIDEBAR */}
-      <ProjectBar></ProjectBar>
-      <Box>
-        <div className="input-row">
-          <input className="prompt" value={prompt} onChange={(e) => setPrompt(e.currentTarget.value)} placeholder={"What do you want to know?"}>
-          </input>
-          <button className="link-btn" onClick={() => setShowwindowFile(true)}><span className="material-icons">attach_file</span></button>
-          <button className="send-btn" onClick={send}>Send</button>
-        </div>
-        <h2>Answer</h2>
-        <div className="answer">
-          {answer}
-        </div>
-        {showWindowFile && <div className="modal-overlay">
-          <div className="modal-window">
-            <UploadFile setFile={setFile} link={link} answer={uploadResult}></UploadFile>
-          </div>
-        </div>}
-       
-      </Box>
+      <ProjectBar setSelectedProject={setSelectedProject}></ProjectBar>
+      
        {selectedProject &&
       <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen}></RightPanel>
        }

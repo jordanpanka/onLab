@@ -87,11 +87,26 @@ public class ProjectService
     public async Task<ServiceResult> GetFilesAsync(ProjectID data)
     {
         var exist=await codeDbContext.Projects.AnyAsync(x=>x.ID==data.id);
-        if(!exist) return ServiceResult.Fail("Project doesn1t exist");
+        if(!exist) return ServiceResult.Fail("Project doesn't exist");
 
-        var files=await codeDbContext.Files.Where(x=>x.ProjectID==data.id).ToListAsync();
+        var files=await codeDbContext.Files
+        .Where(x=>x.ProjectID==data.id)
+        .Select(x=>new File
+        {
+            ID=x.ID,
+            Name=x.Name,
+            RelativePath=x.RelativePath
+        })
+        .ToListAsync();
 
-        return ServiceResult.Success(JsonSerializer.Serialize(files));
+        return ServiceResult.Success(files);
+    }
+    public async Task<ServiceResult> DeleteInvestigationsAsync(int invid)
+    {
+        var exist=await codeDbContext.Investigations.AnyAsync(x=>x.ID==invid);
+        if(!exist) return ServiceResult.Fail("Investigation doesn1t exist");
+
+        
     }
 
 }
