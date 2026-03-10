@@ -76,17 +76,14 @@ public class ProjectController : ControllerBase
     }
     [Authorize]
     [HttpPost("delete")]
-    public async Task<IActionResult> DeleteInvetigations([FromBody] int invid)
+    public async Task<IActionResult> DeleteInvetigations([FromBody] ProjectID selectedInvId)
     {
         var uidClaim = User.FindFirst("uid");
         if (uidClaim == null) return Unauthorized("Missing uid claim");
-        var response=await projectService.DeleteInvestigationsAsync(invid);
-        if(response.Ok) return BadRequest(response.Error);
+        var response=await projectService.DeleteInvestigationsAsync(selectedInvId.id);
+        if(!response.Ok) return BadRequest(response.Error);
         return Ok();
     }
-
-
-
 }
 public record FilesData(int id, int projectId);
 public record ProjectData(int invid, string name, string description);

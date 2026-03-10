@@ -104,7 +104,7 @@ public class ProjectService
     public async Task<ServiceResult> DeleteInvestigationsAsync(int invid)
     {
         var exist=await codeDbContext.Investigations.SingleOrDefaultAsync(x=>x.ID==invid);
-        if(exist==null) return ServiceResult.Fail("Investigation doesn1t exist");
+        if(exist==null) return ServiceResult.Fail("Investigation doesn't exist");
 
         codeDbContext.Investigations.Remove(exist);
         await codeDbContext.SaveChangesAsync();

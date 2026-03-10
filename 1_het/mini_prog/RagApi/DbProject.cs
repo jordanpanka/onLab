@@ -12,8 +12,8 @@ namespace ef
         public string Description {get; set;}
         public List<DbFile> Files {get; set;}
 
-        [ForeignKey("InvID")]
-        public DbInvestigation Investigation;
+        [ForeignKey("InvestigationID")]
+        public DbInvestigation Investigation {get; set;}
 
     }
 }

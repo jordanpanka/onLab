@@ -85,8 +85,10 @@ export function ProjectBar(prop:pbProps
         const response=await fetch("api/investigations/delete",{
             method:"Post",
             headers:{"Content-Type": "application/json","Authorization": "Bearer " + token},
-            body: JSON.stringify({selectedInvId})
+            body: JSON.stringify({id: selectedInvId})
         })
+        loadInvestigations();
+        setAnchor(null);
 
     }
     async function deleteProject(){
@@ -159,7 +161,7 @@ export function ProjectBar(prop:pbProps
                                 <ListItemText primary={inv.name}></ListItemText>
                                 <IconButton className="row-menu"
                                     size="small"
-                                    onClick={(e) => openInvMenu(e, "project")}
+                                    onClick={(e) => {openInvMenu(e, "project"); setSelectedInvId(inv.id);}}
                                     sx={{
                                         p: 0.5,
                                         opacity: 0,
@@ -196,7 +198,7 @@ export function ProjectBar(prop:pbProps
                                                     <IconButton
                                                         className="row-menu"
                                                         size="small"
-                                                        onClick={(e) => openInvMenu(e,"file")}
+                                                        onClick={(e) =>{ openInvMenu(e,"file"); setSelectedProjectId(project.id);}}
                                                         sx={{
                                                             p: 0,
                                                             width: 20,
@@ -226,7 +228,7 @@ export function ProjectBar(prop:pbProps
                 })}
             </List>
         </Drawer >
-        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject}></RowMenu>
+        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation}></RowMenu>
         {showInvWindow && 
                 <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
             }
