@@ -12,12 +12,14 @@ type RightPanelProps = {
     projectSelected: Project,
     projOpen: Record<number, boolean>,
     setProjOpen: React.Dispatch<React.SetStateAction<Record<number, boolean>>>
+    showWindowAddfile:boolean,
+    setShowWindowAddFile:(b:boolean)=>void
 }
 
 export function RightPanel(rpProps: RightPanelProps) {
     const [open, setOpen] = useState(true);
     const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>([]);
-    const [showWindowAddfile, setShowWindowAddFile] = useState(false);
+    //const [showWindowAddfile, setShowWindowAddFile] = useState(false);
     const [uploadResult, setUploadResult] = useState("");
     const [file, setFile] = useState<FileList>();
     async function loadFiles(id: number) {
@@ -37,7 +39,7 @@ export function RightPanel(rpProps: RightPanelProps) {
         }));
     }
     async function addFile() {
-        setShowWindowAddFile(true);
+        rpProps.setShowWindowAddFile(true);
     }
     async function link() {
         if (!file) {
@@ -57,7 +59,7 @@ export function RightPanel(rpProps: RightPanelProps) {
             headers: { "Authorization": "Bearer " + token },
             body: data
         })
-        setShowWindowAddFile(false);
+        rpProps.setShowWindowAddFile(false);
 
     }
     const isProjOpen = !!rpProps.projOpen[rpProps.projectSelected.id];
@@ -101,6 +103,6 @@ export function RightPanel(rpProps: RightPanelProps) {
                 </div>
             </List>
         </Drawer>
-        {showWindowAddfile && <UploadFile setFile={setFile} link={link} open={showWindowAddfile} setOpen={setShowWindowAddFile} ></UploadFile>}
+        {rpProps.showWindowAddfile && <UploadFile setFile={setFile} link={link} open={rpProps.showWindowAddfile} setOpen={rpProps.setShowWindowAddFile} ></UploadFile>}
     </>);
 }

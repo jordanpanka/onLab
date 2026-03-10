@@ -18,11 +18,16 @@ export type Investigation = {
     name: string,
     description: string
 }
+type pbProps={
+    setSelectedProject: Dispatch<StateUpdater<Project | undefined>> , 
+    shoWindowFile:boolean, 
+    setShowWindowFile:(b:boolean)=>void
 
+}
 const openwidth = 240;
 const closedWidth = 60;
 const HEADER_H = 64;
-export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatch<StateUpdater<Project | undefined>> }
+export function ProjectBar(prop:pbProps
 ) {
     const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>({});
     const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>({});
@@ -35,8 +40,11 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
     const [showInvWindow, setShowInvwindow] = useState(false);
     const [showProjWindow, setShowProjwindow] = useState(false);
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-    const [menuState,setMenuState]=useState<"investigation" | "project" | null>(null);
+    const [menuState,setMenuState]=useState<"file" | "project" | null>(null);
 
+    async function addFile(){
+        prop.setShowWindowFile(true);
+    }    
     async function addProject() {
         setShowProjwindow(true);
     }
@@ -90,7 +98,7 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
         })
     }
     //open menu
-    function openInvMenu(e: MouseEvent, type: "investigation" |"project") {
+    function openInvMenu(e: MouseEvent, type: "file" |"project") {
         e.stopPropagation();
         setAnchor(e.currentTarget as HTMLElement);
         setMenuState(type);
@@ -146,12 +154,12 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
                                 setInvOpen(s => ({ ...s, [inv.id]: !s[inv.id] }));
                                 setSelectedInvId(inv.id);
                             }}>
-                                {/*isInvOpen ? <ExpandMore /> : <ExpandLess />*/}
+                               
                                 <span style={{ fontFamily: "monospace", fontSize: 16 }}>{isInvOpen ? "><" : "<>"}</span>
                                 <ListItemText primary={inv.name}></ListItemText>
                                 <IconButton className="row-menu"
                                     size="small"
-                                    onClick={(e) => openInvMenu(e, "investigation")}
+                                    onClick={(e) => openInvMenu(e, "project")}
                                     sx={{
                                         p: 0.5,
                                         opacity: 0,
@@ -180,7 +188,7 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
                                                     //await loadConversation(project.id);
                                                     setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
                                                     setSelectedProjectId(project.id);
-                                                    setSelectedProject(project);
+                                                    prop.setSelectedProject(project);
                                                 }}>
                                                     {isProjOpen ? "📂" : "📁"}
                                                     <ListItemText sx={{ my: 0 }} primary={project.name}></ListItemText>
@@ -188,7 +196,7 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
                                                     <IconButton
                                                         className="row-menu"
                                                         size="small"
-                                                        onClick={(e) => openInvMenu(e,"project")}
+                                                        onClick={(e) => openInvMenu(e,"file")}
                                                         sx={{
                                                             p: 0,
                                                             width: 20,
@@ -218,17 +226,13 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
                 })}
             </List>
         </Drawer >
-        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addInv={addInvestigation} addProj={addProject}></RowMenu>
-        {showInvWindow && /*<div className="modal-overlay">
-            <div className="modal-window">*/
+        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject}></RowMenu>
+        {showInvWindow && 
                 <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
-            /*</div>
-        </div>*/}
-        {showProjWindow && /*<div className="modal-overlay">
-            <div className="modal-window">*/
+            }
+        {showProjWindow && 
                 <NewProject isInv={false} invId={selectedInvId} open={showProjWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
-            /*</div>
-        </div >*/}
+            }
     </>)
 
 }

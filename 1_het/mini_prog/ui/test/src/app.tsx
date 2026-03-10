@@ -112,10 +112,10 @@ export function App() {
       </AppBar>
 
       {/* SIDEBAR */}
-      <ProjectBar setSelectedProject={setSelectedProject}></ProjectBar>
+      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile}></ProjectBar>
       
        {selectedProject &&
-      <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen}></RightPanel>
+      <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen} showWindowAddfile={showWindowFile} setShowWindowAddFile={setShowwindowFile}></RightPanel>
        }
     </>
   )
