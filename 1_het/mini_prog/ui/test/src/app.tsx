@@ -1,14 +1,40 @@
-import { useState } from 'preact/hooks'
-import { UploadFile } from './uploadFile';
+import { useEffect, useState } from 'preact/hooks'
 import './app.css'
+import { ProjectBar, type Project } from './ProjectBar';
+import { AppBar, Avatar, Box, IconButton, Toolbar, Typography } from '@mui/material';
+import LogoutIcon from "@mui/icons-material/Logout";
+import { jwtDecode as decodeJwt } from "jwt-decode";
+import { useLocation } from "preact-iso";
+import { RightPanel } from './RightPanel';
+import avatar from "./assets/avatar.png";
 
+const HEADER_H = 56;
+export type JwtPayload = {
+  uid: string
+  email: string
+  firstname: string
+  lastname: string
+}
 export function App() {
   const [prompt, setPrompt] = useState("");
   const [answer, setAnswer] = useState("bla bla bla");
-  const [file, setFile] = useState<File | null>(null);
-  const [showWindow, setShowwindow] = useState(false);
-  const [uploadResult,setUploadResult]=useState("");
-
+  const [file, setFile] = useState<FileList>();
+  const [showWindowFile, setShowwindowFile] = useState(false);
+  const [uploadResult, setUploadResult] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  //variables for sidebars
+  const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>({});
+  const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
+  const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
+  const [selectedProject, setSelectedProject]=useState<Project>();
+  const { route } = useLocation();
+  useEffect(() => {
+  if (!localStorage.getItem("token")) {
+    
+    route("/login");
+  }
+}, []);
   async function send() {
     setAnswer("Thinking...");
 
@@ -21,42 +47,77 @@ export function App() {
     const data = await r.json();
     setAnswer(data.answer);
   }
- 
+
 
   async function link() {
     if (!file) {
       setUploadResult("Előbb válassz ki egy fájlt!");
       return;
     }
-    const data = new FormData();
-    data.append("document", file);
-    
 
-    const response = await fetch("/api/docs", {
+    const data = new FormData();
+    for (const f of Array.from(file ?? [])) {
+      data.append("files", f);
+      data.append("paths", f.webkitRelativePath);
+    }
+    const token=localStorage.getItem("token");
+    const response = await fetch("/api/investigations/projects/files/upload", {
       method: "POST",
+      headers:{"Authorization": "Bearer " + token},
       body: data
     })
-    setShowwindow(false);
+    setShowwindowFile(false);
 
   }
+  function setName() {
+    const token = localStorage.getItem("token");
+    if (!token) return; // nincs bejelentkezve
+
+    const decoded = decodeJwt<JwtPayload>(token);
+
+    setFirstName(decoded.firstname);
+    setLastName(decoded.lastname);
+  }
+  function logout(){
+    
+    localStorage.removeItem("token");
+    route("/login",true);
+  }
+  useEffect(() => setName(), []);
   return (
     <>
-      <h1>Mini chat</h1>
-      <div className="input-row">
-        <input className="prompt" value={prompt} onChange={(e) => setPrompt(e.currentTarget.value)} placeholder={"What do you want to know?"}>
-        </input>
-        <button className="link-btn" onClick={() => setShowwindow(true)}><span className="material-icons">attach_file</span></button>
-        <button className="send-btn" onClick={send}>Send</button>
-      </div>
-      <h2>Answer</h2>
-      <div className="answer">
-        {answer}
-      </div>
-      {showWindow && <div className="modal-overlay">
-        <div className="modal-window">
-        <UploadFile setFile={setFile} link={link} answer={uploadResult}></UploadFile>
-        </div>
-      </div>}
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          backgroundColor: "white",
+          color: "black",
+          borderBottom: "1px solid #eee",
+          zIndex: (theme) => theme.zIndex.drawer + 1, // fontos: legyen a Drawer felett
+        }}
+      >
+        <Toolbar sx={{ height: HEADER_H }}>
+          <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%", }}>
+            <Typography sx={{ fontWeight: 600, fontSize:30 }}>Mini chat</Typography>
+            <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}> 
+              <Avatar sx={{ width: 32, height: 32 }}><img src={avatar} alt="Avatar"></img></Avatar>
+              <Typography>{lastName} {firstName}</Typography>
+             
+              <IconButton onClick={logout}><LogoutIcon /></IconButton>
+            </Box>
+          </Box>
+
+
+        </Toolbar>
+      </AppBar>
+
+      {/* SIDEBAR */}
+      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile}></ProjectBar>
+      
+       {selectedProject &&
+      <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen} showWindowAddfile={showWindowFile} setShowWindowAddFile={setShowwindowFile}></RightPanel>
+       }
     </>
   )
 }
+
