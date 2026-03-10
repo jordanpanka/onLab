@@ -25,6 +25,7 @@ export function NewProject(props: npProps) {
         })
 
         props.setOpen(false);
+        props.loadInvestigations();
     }
     async function addProject() {
         if (!props.invId) return;

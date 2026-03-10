@@ -35,6 +35,7 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
     const [showInvWindow, setShowInvwindow] = useState(false);
     const [showProjWindow, setShowProjwindow] = useState(false);
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+    const [menuState,setMenuState]=useState<"investigation" | "project" | null>(null);
 
     async function addProject() {
         setShowProjwindow(true);
@@ -78,12 +79,21 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
             headers:{"Content-Type": "application/json","Authorization": "Bearer " + token},
             body: JSON.stringify({selectedInvId})
         })
-        
+
+    }
+    async function deleteProject(){
+        const token=localStorage.getItem("token");
+        const response=await fetch("api/investigations/projects/delete",{
+            method:"Post",
+            headers:{"Content-Type": "application/json","Authorization": "Bearer " + token},
+            body: JSON.stringify({selectedProjectId})
+        })
     }
     //open menu
-    function openInvMenu(e: MouseEvent) {
+    function openInvMenu(e: MouseEvent, type: "investigation" |"project") {
         e.stopPropagation();
         setAnchor(e.currentTarget as HTMLElement);
+        setMenuState(type);
     }
     return (<>
         <Drawer variant="persistent" anchor="left" open={open} sx={{
@@ -141,7 +151,7 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
                                 <ListItemText primary={inv.name}></ListItemText>
                                 <IconButton className="row-menu"
                                     size="small"
-                                    onClick={(e) => openInvMenu(e)}
+                                    onClick={(e) => openInvMenu(e, "investigation")}
                                     sx={{
                                         p: 0.5,
                                         opacity: 0,
@@ -178,7 +188,7 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
                                                     <IconButton
                                                         className="row-menu"
                                                         size="small"
-                                                        onClick={(e) => openInvMenu(e)}
+                                                        onClick={(e) => openInvMenu(e,"project")}
                                                         sx={{
                                                             p: 0,
                                                             width: 20,
@@ -189,7 +199,7 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
                                                     >
                                                         <MoreHorizIcon sx={{ fontSize: 16 }} />
                                                     </IconButton>
-                                                    <RowMenu anchor={anchor} setAnchor={setAnchor} addInv={addInvestigation}></RowMenu>
+                                                
                                                 </ListItemButton>
                                                 <Collapse in={isProjOpen} timeout="auto" unmountOnExit>
                                                     <List disablePadding dense>
@@ -208,16 +218,17 @@ export function ProjectBar({ setSelectedProject }: { setSelectedProject: Dispatc
                 })}
             </List>
         </Drawer >
-        {showInvWindow && <div className="modal-overlay">
-            <div className="modal-window">
+        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addInv={addInvestigation} addProj={addProject}></RowMenu>
+        {showInvWindow && /*<div className="modal-overlay">
+            <div className="modal-window">*/
                 <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
-            </div>
-        </div>}
-        {showProjWindow && <div className="modal-overlay">
-            <div className="modal-window">
+            /*</div>
+        </div>*/}
+        {showProjWindow && /*<div className="modal-overlay">
+            <div className="modal-window">*/
                 <NewProject isInv={false} invId={selectedInvId} open={showProjWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
-            </div>
-        </div >}
+            /*</div>
+        </div >*/}
     </>)
 
 }

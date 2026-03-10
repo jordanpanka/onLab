@@ -53,7 +53,8 @@ export function FolderTree({ node, level, onFileClick, }: { node: FolderNode, le
                 onClick={() => hasChildren && setOpen(!open)}
                 disabled={!hasChildren}
             >
-                <FolderIcon fontSize="small" style={{ marginRight: 8 }}></FolderIcon>
+                
+                📁
                 <ListItemText primary={node.name} />
                 {hasChildren ? (open ? <ExpandLess /> : <ExpandMore />) : null}
             </ListItemButton>
@@ -66,7 +67,8 @@ export function FolderTree({ node, level, onFileClick, }: { node: FolderNode, le
             </List>
             {node.files.map(file => (
                 <ListItemButton key={file.id} sx={{ pl: 2 + (level + 1) * 2 }} onClick={() => { onFileClick(file) }}>
-                    <InsertDriveFileIcon fontSize="small" style={{ marginRight: 8 }} />
+                   
+                    📄
                     <ListItemText primary={file.name} />
 
                 </ListItemButton>
