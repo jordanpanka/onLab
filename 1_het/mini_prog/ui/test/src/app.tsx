@@ -7,6 +7,7 @@ import { jwtDecode as decodeJwt } from "jwt-decode";
 import { useLocation } from "preact-iso";
 import { RightPanel } from './RightPanel';
 import avatar from "./assets/avatar.png";
+import { Chat } from '@mui/icons-material';
 
 const HEADER_H = 56;
 export type JwtPayload = {
@@ -113,8 +114,8 @@ export function App() {
 
       {/* SIDEBAR */}
       <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile}></ProjectBar>
-      
-       {selectedProject &&
+      <Chat></Chat>
+      {selectedProject &&
       <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen} showWindowAddfile={showWindowFile} setShowWindowAddFile={setShowwindowFile}></RightPanel>
        }
     </>

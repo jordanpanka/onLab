@@ -1,6 +1,8 @@
 import { Box, Collapse, IconButton, InputAdornment, List, ListItemButton, ListItemText, TextField, Typography } from "@mui/material";
 import Drawer from "@mui/material/Drawer";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
+import DiamondIcon from "@mui/icons-material/Diamond";
+import DiamondOutlinedIcon from "@mui/icons-material/DiamondOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState, type Dispatch, type StateUpdater } from "preact/hooks"
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
@@ -192,7 +194,8 @@ export function ProjectBar(prop:pbProps
                                                     setSelectedProjectId(project.id);
                                                     prop.setSelectedProject(project);
                                                 }}>
-                                                    {isProjOpen ? "📂" : "📁"}
+                                                    {/*isProjOpen ? "📂" : "📁"*/}
+                                                   {isProjOpen ? "◇" : "◆"}
                                                     <ListItemText sx={{ my: 0 }} primary={project.name}></ListItemText>
 
                                                     <IconButton
