@@ -15,6 +15,7 @@ export function RowMenu(prop:rmProps){
     
     return (
         <Menu anchorEl={prop.anchor} open={!!prop.anchor} onClose={()=>prop.setAnchor(null)}>
+            {prop.type=="file" && <MenuItem>Add new conversation</MenuItem>}
             <MenuItem onClick={prop.type=="project" ? prop.addProj :prop.addFile}>{prop.type=="project" ? "Add new project": "Add new file"} </MenuItem>
             <MenuItem>Rename</MenuItem>
             <MenuItem onClick={prop.deleteInv}>Delete</MenuItem>

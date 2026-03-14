@@ -30,6 +30,8 @@ export function App() {
   const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
   const [selectedProject, setSelectedProject]=useState<Project>();
   const { route } = useLocation();
+
+  const[isnewConversation, setIsNewConversation]=useState(false);
   useEffect(() => {
   if (!localStorage.getItem("token")) {
     

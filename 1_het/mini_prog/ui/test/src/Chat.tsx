@@ -8,8 +8,20 @@ type Message = {
     content: string
 
 }
+type Conversation ={
+    title:string,
+    createdAtUtc: Date,
+    updatedAtUtc: Date,
+    messages: Message[]
+}
 export function Chat() {
-    const [messages, setMessages] = useState<Message[]>([]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [selectedConversation, setSelectedConversation]=useState<Conversation>();
+
+    async function addConversation(){
+
+    }
+    async function addMessage(){}
     return (
         <Paper
             sx={{
@@ -23,7 +35,7 @@ export function Chat() {
                 overflowY: "auto",
                 border: "1px solid red"
             }}>
-                {messages.map(m => {
+                {selectedConversation && selectedConversation.messages.map(m => {
                     return <Box key={m.id} sx={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
                         <Paper>
                             <Typography>{m.content}</Typography>
