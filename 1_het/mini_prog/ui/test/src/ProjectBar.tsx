@@ -3,12 +3,14 @@ import Drawer from "@mui/material/Drawer";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import DiamondIcon from "@mui/icons-material/Diamond";
 import DiamondOutlinedIcon from "@mui/icons-material/DiamondOutlined";
+import ChatBubbleIcon from "@mui/icons-material/ChatBubble";
 import SearchIcon from "@mui/icons-material/Search";
 import { useEffect, useState, type Dispatch, type StateUpdater } from "preact/hooks"
 import { buildTree, FolderTree, type FileItem } from "./FolderTree";
 import { NewProject } from "./NewProject";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { RowMenu } from "./RowMenu";
+import type { Conversation } from "./Chat";
 export type Project = {
     id: number,
     invid: number,
@@ -20,20 +22,24 @@ export type Investigation = {
     name: string,
     description: string
 }
-type pbProps={
-    setSelectedProject: Dispatch<StateUpdater<Project | undefined>> , 
-    shoWindowFile:boolean, 
-    setShowWindowFile:(b:boolean)=>void
+type pbProps = {
+    setSelectedProject: Dispatch<StateUpdater<Project | undefined>>,
+    shoWindowFile: boolean,
+    setShowWindowFile: (b: boolean) => void,
+    conversatuionsByProjId:Record<number, Conversation[]>,
+    loadConversations:(s:number)=>void
 
 }
 const openwidth = 240;
 const closedWidth = 60;
 const HEADER_H = 64;
-export function ProjectBar(prop:pbProps
+export function ProjectBar(prop: pbProps
 ) {
     const [filesByProjId, setFilesByProjId] = useState<Record<number, FileItem[]>>({});
     const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>({});
     const [investigations, setInvestigations] = useState<Investigation[]>([]);
+
+    const [selectedConversationId, setSelectedConversationId]=useState<number>(-1);
     const [selectedInvId, setSelectedInvId] = useState<number>(-1);
     const [selectedProjectId, setSelectedProjectId] = useState<number>(-1);
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
@@ -42,11 +48,11 @@ export function ProjectBar(prop:pbProps
     const [showInvWindow, setShowInvwindow] = useState(false);
     const [showProjWindow, setShowProjwindow] = useState(false);
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-    const [menuState,setMenuState]=useState<"file" | "project" | null>(null);
+    const [menuState, setMenuState] = useState<"file" | "project" | null>(null);
 
-    async function addFile(){
+    async function addFile() {
         prop.setShowWindowFile(true);
-    }    
+    }
     async function addProject() {
         setShowProjwindow(true);
     }
@@ -82,27 +88,27 @@ export function ProjectBar(prop:pbProps
             [id]: data
         }));
     }
-    async function deleteInvestigation(){
-        const token=localStorage.getItem("token");
-        const response=await fetch("api/investigations/delete",{
-            method:"Post",
-            headers:{"Content-Type": "application/json","Authorization": "Bearer " + token},
-            body: JSON.stringify({id: selectedInvId})
+    async function deleteInvestigation() {
+        const token = localStorage.getItem("token");
+        const response = await fetch("api/investigations/delete", {
+            method: "Post",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ id: selectedInvId })
         })
         loadInvestigations();
         setAnchor(null);
 
     }
-    async function deleteProject(){
-        const token=localStorage.getItem("token");
-        const response=await fetch("api/investigations/projects/delete",{
-            method:"Post",
-            headers:{"Content-Type": "application/json","Authorization": "Bearer " + token},
-            body: JSON.stringify({selectedProjectId})
+    async function deleteProject() {
+        const token = localStorage.getItem("token");
+        const response = await fetch("api/investigations/projects/delete", {
+            method: "Post",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ selectedProjectId })
         })
     }
     //open menu
-    function openInvMenu(e: MouseEvent, type: "file" |"project") {
+    function openInvMenu(e: MouseEvent, type: "file" | "project") {
         e.stopPropagation();
         setAnchor(e.currentTarget as HTMLElement);
         setMenuState(type);
@@ -128,7 +134,7 @@ export function ProjectBar(prop:pbProps
             </Box>
 
             <Box sx={{ display: "flex", marginLeft: 2, marginRight: 2 }}>
-                <TextField size="small" placeholder="Search..." sx={{borderradius: 3}}InputProps={{
+                <TextField size="small" placeholder="Search..." sx={{ borderradius: 3 }} InputProps={{
                     endAdornment: (<InputAdornment position="end"> <IconButton>
                         <SearchIcon />
                     </IconButton> </InputAdornment>),
@@ -158,12 +164,12 @@ export function ProjectBar(prop:pbProps
                                 setInvOpen(s => ({ ...s, [inv.id]: !s[inv.id] }));
                                 setSelectedInvId(inv.id);
                             }}>
-                               
+
                                 <span style={{ fontFamily: "monospace", fontSize: 16 }}>{isInvOpen ? "><" : "<>"}</span>
                                 <ListItemText primary={inv.name}></ListItemText>
                                 <IconButton className="row-menu"
                                     size="small"
-                                    onClick={(e) => {openInvMenu(e, "project"); setSelectedInvId(inv.id);}}
+                                    onClick={(e) => { openInvMenu(e, "project"); setSelectedInvId(inv.id); }}
                                     sx={{
                                         p: 0.5,
                                         opacity: 0,
@@ -177,9 +183,6 @@ export function ProjectBar(prop:pbProps
                                 <List disablePadding dense>
                                     {(projectsByInvId[inv.id] ?? []).map(project => {
                                         const isProjOpen = !!projOpen[project.id];
-                                        const files = filesByProjId[project.id] ?? [];
-                                        const tree = buildTree(files);
-
                                         return (
                                             <div key={project.id}>
                                                 <ListItemButton sx={{
@@ -189,19 +192,19 @@ export function ProjectBar(prop:pbProps
                                                         opacity: 1
                                                     }
                                                 }} onClick={async () => {
-                                                    //await loadConversation(project.id);
+                                                    await prop.loadConversations(project.id);
                                                     setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
                                                     setSelectedProjectId(project.id);
                                                     prop.setSelectedProject(project);
                                                 }}>
                                                     {/*isProjOpen ? "📂" : "📁"*/}
-                                                   {isProjOpen ? "◇" : "◆"}
+                                                    {isProjOpen ? "◇" : "◆"}
                                                     <ListItemText sx={{ my: 0 }} primary={project.name}></ListItemText>
 
                                                     <IconButton
                                                         className="row-menu"
                                                         size="small"
-                                                        onClick={(e) =>{ openInvMenu(e,"file"); setSelectedProjectId(project.id);}}
+                                                        onClick={(e) => { openInvMenu(e, "file"); setSelectedProjectId(project.id); }}
                                                         sx={{
                                                             p: 0,
                                                             width: 20,
@@ -212,11 +215,53 @@ export function ProjectBar(prop:pbProps
                                                     >
                                                         <MoreHorizIcon sx={{ fontSize: 16 }} />
                                                     </IconButton>
-                                                
+
                                                 </ListItemButton>
                                                 <Collapse in={isProjOpen} timeout="auto" unmountOnExit>
                                                     <List disablePadding dense>
+                                                        {(prop.conversatuionsByProjId[project.id] ?? []).map(conv => {
+                                                            //const isConvOpen = !!convOpen[conv.id];
+                                                            return (
+                                                                <div key={conv.id}>
+                                                                    <ListItemButton sx={{
+                                                                        pl: 4, gap: 1, py: 0,
+                                                                        borderRadius: 1,
+                                                                        "&:hover .row-menu": {
+                                                                            opacity: 1
+                                                                        }
+                                                                    }} onClick={async () => {
+                                                                        
+                                                                        //setConvOpen(s => ({ ...s, [conv.id]: !s[conv.id] }));
+                                                                        setSelectedConversationId(conv.id);
+                                    
+                                                                    }}>
+                                                                       
+                                                                        <ChatBubbleIcon/>
+                                                                        <ListItemText sx={{ my: 0 }} primary={conv.title}></ListItemText>
 
+                                                                        <IconButton
+                                                                            className="row-menu"
+                                                                            size="small"
+                                                                            onClick={(e) => { openInvMenu(e, "file"); setSelectedProjectId(project.id); }}
+                                                                            sx={{
+                                                                                p: 0,
+                                                                                width: 20,
+                                                                                height: 20,
+                                                                                opacity: 0,
+                                                                                transition: "opacity 0.15s ease"
+                                                                            }}
+                                                                        >
+                                                                            <MoreHorizIcon sx={{ fontSize: 16 }} />
+                                                                        </IconButton>
+
+                                                                    </ListItemButton>
+                                                                </div>);
+
+
+                                                            }
+                                                        )
+
+                                                        }
                                                     </List>
                                                 </Collapse>
                                             </div>
@@ -232,12 +277,12 @@ export function ProjectBar(prop:pbProps
             </List>
         </Drawer >
         <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation}></RowMenu>
-        {showInvWindow && 
-                <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
-            }
-        {showProjWindow && 
-                <NewProject isInv={false} invId={selectedInvId} open={showProjWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
-            }
+        {showInvWindow &&
+            <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
+        }
+        {showProjWindow &&
+            <NewProject isInv={false} invId={selectedInvId} open={showProjWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
+        }
     </>)
 
 }

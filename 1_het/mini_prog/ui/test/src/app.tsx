@@ -8,6 +8,7 @@ import { useLocation } from "preact-iso";
 import { RightPanel } from './RightPanel';
 import avatar from "./assets/avatar.png";
 import { Chat } from '@mui/icons-material';
+import type { Conversation } from './Chat';
 
 const HEADER_H = 56;
 export type JwtPayload = {
@@ -25,19 +26,19 @@ export function App() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   //variables for sidebars
-  const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>({});
+  const [conversationsByProjId, setConversationsByProjId] = useState<Record<number, Conversation[]>>({});
   const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
   const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
-  const [selectedProject, setSelectedProject]=useState<Project>();
+  const [selectedProject, setSelectedProject] = useState<Project>();
   const { route } = useLocation();
 
-  const[isnewConversation, setIsNewConversation]=useState(false);
+  const [isnewConversation, setIsNewConversation] = useState(false)
   useEffect(() => {
-  if (!localStorage.getItem("token")) {
-    
-    route("/login");
-  }
-}, []);
+    if (!localStorage.getItem("token")) {
+
+      route("/login");
+    }
+  }, []);
   async function send() {
     setAnswer("Thinking...");
 
@@ -63,10 +64,10 @@ export function App() {
       data.append("files", f);
       data.append("paths", f.webkitRelativePath);
     }
-    const token=localStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const response = await fetch("/api/investigations/projects/files/upload", {
       method: "POST",
-      headers:{"Authorization": "Bearer " + token},
+      headers: { "Authorization": "Bearer " + token },
       body: data
     })
     setShowwindowFile(false);
@@ -81,12 +82,31 @@ export function App() {
     setFirstName(decoded.firstname);
     setLastName(decoded.lastname);
   }
-  function logout(){
-    
+  function logout() {
+
     localStorage.removeItem("token");
-    route("/login",true);
+    route("/login", true);
   }
   useEffect(() => setName(), []);
+  async function loadConversations() {
+    const token = localStorage.getItem("token");
+    const projectId = selectedProject?.id;
+    const response = await fetch("api/chat/conversations/load", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify(projectId)
+    })
+    const data = await response.json();
+    if (projectId) {
+      setConversationsByProjId(prev => ({
+        ...prev,
+        [projectId]: data
+      }));
+    }
+  }
   return (
     <>
       <AppBar
@@ -101,11 +121,11 @@ export function App() {
       >
         <Toolbar sx={{ height: HEADER_H }}>
           <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%", }}>
-            <Typography sx={{ fontWeight: 600, fontSize:30 }}>Mini chat</Typography>
-            <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}> 
+            <Typography sx={{ fontWeight: 600, fontSize: 30 }}>Mini chat</Typography>
+            <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
               <Avatar sx={{ width: 32, height: 32 }}><img src={avatar} alt="Avatar"></img></Avatar>
               <Typography>{lastName} {firstName}</Typography>
-             
+
               <IconButton onClick={logout}><LogoutIcon /></IconButton>
             </Box>
           </Box>
@@ -115,11 +135,11 @@ export function App() {
       </AppBar>
 
       {/* SIDEBAR */}
-      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile}></ProjectBar>
+      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile} loadConversations={loadConversations} conversatuionsByProjId={conversationsByProjId}></ProjectBar>
       <Chat></Chat>
       {selectedProject &&
-      <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen} showWindowAddfile={showWindowFile} setShowWindowAddFile={setShowwindowFile}></RightPanel>
-       }
+        <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen} showWindowAddfile={showWindowFile} setShowWindowAddFile={setShowwindowFile}></RightPanel>
+      }
     </>
   )
 }
