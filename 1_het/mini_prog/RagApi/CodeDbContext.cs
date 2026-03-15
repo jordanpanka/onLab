@@ -12,6 +12,7 @@ public class CodeDbContext : DbContext
     public DbSet<DbProject> Projects { get; set; }
     public DbSet<DbInvestigation> Investigations { get; set; }
     public DbSet<DbFile> Files { get; set; }
+    public DbSet<DbConversation> Conversations {get; set;}
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

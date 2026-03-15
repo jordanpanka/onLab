@@ -21,7 +21,7 @@ type cProps={
     setNewChat: (b: boolean)=>void,
     sellectedProjId:number
 }
-export function Chat(prop:cProps) {
+export function ChatWindow(prop:cProps) {
     const [conversationsByProjId, setConversationsByProjId] = useState<Record<number,Conversation[]>>({});
     const [selectedConversation, setSelectedConversation]=useState<Conversation>();
 

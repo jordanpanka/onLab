@@ -93,6 +93,7 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<FileService>();
+builder.Services.AddScoped<ChatService>();
 
 //controllers
 builder.Services.AddControllers();

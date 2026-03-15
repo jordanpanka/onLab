@@ -7,7 +7,8 @@ type rmProps={
     addProj:()=>void,
     type:"project" |"file" |null
     /*rename:()=>void,*/
-    deleteInv:()=>void
+    deleteInv:()=>void,
+    addConversation:()=>void
 
 
 }
@@ -15,7 +16,7 @@ export function RowMenu(prop:rmProps){
     
     return (
         <Menu anchorEl={prop.anchor} open={!!prop.anchor} onClose={()=>prop.setAnchor(null)}>
-            {prop.type=="file" && <MenuItem>Add new conversation</MenuItem>}
+            {prop.type=="file" && <MenuItem onClick={prop.addConversation}>Add new conversation</MenuItem>}
             <MenuItem onClick={prop.type=="project" ? prop.addProj :prop.addFile}>{prop.type=="project" ? "Add new project": "Add new file"} </MenuItem>
             <MenuItem>Rename</MenuItem>
             <MenuItem onClick={prop.deleteInv}>Delete</MenuItem>

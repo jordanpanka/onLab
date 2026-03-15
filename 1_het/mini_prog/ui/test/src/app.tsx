@@ -8,7 +8,7 @@ import { useLocation } from "preact-iso";
 import { RightPanel } from './RightPanel';
 import avatar from "./assets/avatar.png";
 import { Chat } from '@mui/icons-material';
-import type { Conversation } from './Chat';
+import { ChatWindow, type Conversation } from './Chat';
 
 const HEADER_H = 56;
 export type JwtPayload = {
@@ -27,9 +27,9 @@ export function App() {
   const [lastName, setLastName] = useState("");
   //variables for sidebars
   const [conversationsByProjId, setConversationsByProjId] = useState<Record<number, Conversation[]>>({});
-  const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
   const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
   const [selectedProject, setSelectedProject] = useState<Project>();
+  const [selectedProjectId,setSelectedProjectId]=useState<number>(-1);
   const { route } = useLocation();
 
   const [isnewConversation, setIsNewConversation] = useState(false)
@@ -88,22 +88,22 @@ export function App() {
     route("/login", true);
   }
   useEffect(() => setName(), []);
-  async function loadConversations() {
+  async function loadConversations(id:number) {
     const token = localStorage.getItem("token");
-    const projectId = selectedProject?.id;
+    //const id = selectedProject?.id;
     const response = await fetch("api/chat/conversations/load", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + token
       },
-      body: JSON.stringify(projectId)
+      body: JSON.stringify({id})
     })
     const data = await response.json();
-    if (projectId) {
+    if (id) {
       setConversationsByProjId(prev => ({
         ...prev,
-        [projectId]: data
+        [id]: data
       }));
     }
   }
@@ -119,9 +119,9 @@ export function App() {
           zIndex: (theme) => theme.zIndex.drawer + 1, // fontos: legyen a Drawer felett
         }}
       >
-        <Toolbar sx={{ height: HEADER_H }}>
-          <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%", }}>
-            <Typography sx={{ fontWeight: 600, fontSize: 30 }}>Mini chat</Typography>
+        <Toolbar sx={{ height: HEADER_H, backgroundColor:/*"#0077b6*/"#03045e" }}>
+          <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%",  }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 30, color:"white"}}>Mini chat</Typography>
             <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
               <Avatar sx={{ width: 32, height: 32 }}><img src={avatar} alt="Avatar"></img></Avatar>
               <Typography>{lastName} {firstName}</Typography>
@@ -135,8 +135,8 @@ export function App() {
       </AppBar>
 
       {/* SIDEBAR */}
-      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile} loadConversations={loadConversations} conversatuionsByProjId={conversationsByProjId}></ProjectBar>
-      <Chat></Chat>
+      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile} loadConversations={loadConversations} conversatuionsByProjId={conversationsByProjId} newConv={isnewConversation} setNewConv={setIsNewConversation} /*selectedProjectId={selectedProjectId} setSelectedProjectId={setSelectedProjectId}*/></ProjectBar>
+      {selectedProject &&<ChatWindow newChat={isnewConversation} setNewChat={setIsNewConversation} sellectedProjId={selectedProject?.id}></ChatWindow>}
       {selectedProject &&
         <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen} showWindowAddfile={showWindowFile} setShowWindowAddFile={setShowwindowFile}></RightPanel>
       }

@@ -27,7 +27,11 @@ type pbProps = {
     shoWindowFile: boolean,
     setShowWindowFile: (b: boolean) => void,
     conversatuionsByProjId:Record<number, Conversation[]>,
-    loadConversations:(s:number)=>void
+    loadConversations:(s:number)=>void,
+    newConv:boolean,
+    setNewConv:(b:boolean)=>void,
+    //selectedProjectId:number,
+    //setSelectedProjectId:(n:number)=>void
 
 }
 const openwidth = 240;
@@ -55,6 +59,9 @@ export function ProjectBar(prop: pbProps
     }
     async function addProject() {
         setShowProjwindow(true);
+    }
+    async function addConv() {
+        prop.setNewConv(true);
     }
     async function addInvestigation() {
         setShowInvwindow(true);
@@ -101,10 +108,11 @@ export function ProjectBar(prop: pbProps
     }
     async function deleteProject() {
         const token = localStorage.getItem("token");
+        const id= selectedProjectId;
         const response = await fetch("api/investigations/projects/delete", {
             method: "Post",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ selectedProjectId })
+            body: JSON.stringify({ id })
         })
     }
     //open menu
@@ -130,7 +138,7 @@ export function ProjectBar(prop: pbProps
                     lineHeight: 1,
                     fontFamily: "'Inter', sans-serif",
                 }}>My Ivestigations</Typography>
-                <IconButton onClick={addInvestigation}>+</IconButton>
+                <IconButton onClick={addInvestigation} /*sx={{color:"#0077b6"}}*/>+</IconButton>
             </Box>
 
             <Box sx={{ display: "flex", marginLeft: 2, marginRight: 2 }}>
@@ -186,19 +194,23 @@ export function ProjectBar(prop: pbProps
                                         return (
                                             <div key={project.id}>
                                                 <ListItemButton sx={{
-                                                    pl: 4, gap: 1, py: 0,
+                                                    pl: 4, gap: 1, py: 0, mt:0.8, mb:0.8,
                                                     borderRadius: 1,
                                                     "&:hover .row-menu": {
                                                         opacity: 1
                                                     }
                                                 }} onClick={async () => {
-                                                    await prop.loadConversations(project.id);
-                                                    setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
+                                                    
+                                                   
                                                     setSelectedProjectId(project.id);
                                                     prop.setSelectedProject(project);
+                                                    if(projOpen[project.id]){
+                                                      await prop.loadConversations(project.id);
+                                                    } 
+                                                    setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
                                                 }}>
                                                     {/*isProjOpen ? "📂" : "📁"*/}
-                                                    {isProjOpen ? "◇" : "◆"}
+                                                    <span style={{ fontSize: 20, color:"#03045e" }}>{isProjOpen ? "◇" : "◆"}</span>
                                                     <ListItemText sx={{ my: 0 }} primary={project.name}></ListItemText>
 
                                                     <IconButton
@@ -224,7 +236,7 @@ export function ProjectBar(prop: pbProps
                                                             return (
                                                                 <div key={conv.id}>
                                                                     <ListItemButton sx={{
-                                                                        pl: 4, gap: 1, py: 0,
+                                                                        pl: 6, gap: 1, py: 0,
                                                                         borderRadius: 1,
                                                                         "&:hover .row-menu": {
                                                                             opacity: 1
@@ -236,7 +248,7 @@ export function ProjectBar(prop: pbProps
                                     
                                                                     }}>
                                                                        
-                                                                        <ChatBubbleIcon/>
+                                                                       <span>💬</span>
                                                                         <ListItemText sx={{ my: 0 }} primary={conv.title}></ListItemText>
 
                                                                         <IconButton
@@ -276,7 +288,7 @@ export function ProjectBar(prop: pbProps
                 })}
             </List>
         </Drawer >
-        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation}></RowMenu>
+        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation} addConversation={addConv}></RowMenu>
         {showInvWindow &&
             <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
         }
