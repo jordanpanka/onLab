@@ -13,7 +13,16 @@ type rmProps={
 
 }
 export function RowMenu(prop:rmProps){
-    
+    async function handleAddClick(){
+        switch(prop.type){
+            case "project":
+                prop.addProj();
+                return;
+            case "file":
+                prop.addFile();
+                return;
+        }
+    }
     return (
         <Menu anchorEl={prop.anchor} open={!!prop.anchor} onClose={()=>prop.setAnchor(null)}>
             {prop.type=="file" && <MenuItem onClick={prop.addConversation}>Add new conversation</MenuItem>}

@@ -22,10 +22,10 @@ public class ChatService
         };
         db.Conversations.Add(conversation);
         await db.SaveChangesAsync();
-        return ServiceResult.Success();
+        int id=conversation.ID;
+        return ServiceResult.Success(id);
         //Id return????????????????????????????????,
-        return ServiceResult.Success();
-
+        
     }
     public async Task<ServiceResult> LoadConversationsAsync(ProjectID id)
     {
@@ -56,6 +56,39 @@ public class ChatService
         /////nem jó az include még
         
     }
+    public async Task<ServiceResult> AddMessageAsync(MessageData data)
+    {
+        var exist=await db.Conversations.AnyAsync(x=>x.ID==data.convId);
+        if(!exist) return ServiceResult.Fail("The conversation doesn't exist.");
 
+        var message=new DbMessage
+        {
+            ConversationID=data.convId,
+            Role=data.role,
+            CreatedAtUtc=DateTime.UtcNow,
+            Content=data.content
+        };
+        db.Messages.Add(message);
+        await db.SaveChangesAsync();
+        return ServiceResult.Success();
+    }
+
+    public async Task<ServiceResult> LoadMessagesAsync(Id data)
+    {
+        var exist=await db.Conversations.AnyAsync(x=>x.ID==data.id);
+        if(!exist) return ServiceResult.Fail("The conversation doesn't exist.");
+
+        var messages=await db.Messages
+        .Where(x=>x.ConversationID==data.id)
+        .Select(m=>new Message
+        {
+            ID=m.ID,
+            Role=m.Role,
+            CreatedAtUtc=m.CreatedAtUtc,
+            Content=m.Content
+        }).ToListAsync();
+
+        return ServiceResult.Success(messages);
+    }
 
 }

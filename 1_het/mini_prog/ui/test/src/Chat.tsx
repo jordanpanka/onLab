@@ -1,7 +1,7 @@
 import { Send } from "@mui/icons-material";
 import SendIcon from "@mui/icons-material/Send";
 import { Box, IconButton, Paper, TextField, Typography } from "@mui/material";
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { NewConversation } from "./NewConversation";
 type Message = {
     id: number,
@@ -9,83 +9,125 @@ type Message = {
     content: string
 
 }
-export type Conversation ={
-    id:number,
-    title:string,
+export type Conversation = {
+    id: number,
+    title: string,
     createdAtUtc: Date,
     updatedAtUtc: Date,
     messages: Message[]
 }
-type cProps={
-    newChat:boolean,
-    setNewChat: (b: boolean)=>void,
-    sellectedProjId:number
+type cProps = {
+    newChat: boolean,
+    setNewChat: (b: boolean) => void,
+    sellectedProjId: number,
+    selectedCOnversationId: number
 }
-export function ChatWindow(prop:cProps) {
-    const [conversationsByProjId, setConversationsByProjId] = useState<Record<number,Conversation[]>>({});
-    const [selectedConversation, setSelectedConversation]=useState<Conversation>();
+export function ChatWindow(prop: cProps) {
+    const [conversationsByProjId, setConversationsByProjId] = useState<Record<number, Conversation[]>>({});
+    const [messagesByConvId, setMessagesByConvId] = useState<Record<number, Message[]>>({});
+    // const [selectedConversation, setSelectedConversation] = useState<Conversation>();
+    const [prompt, setPrompt] = useState("");
+    const [answer, setAnswer] = useState("kezdő");
 
-    async function addConversation(title:string){
-        const projectId=prop.sellectedProjId;
-        const token=localStorage.getItem("token");
-        const response=await fetch("api/chat/conversations/add",{
-            method:"POST",
-            headers:{
+    async function addConversation(title: string) {
+        const projectId = prop.sellectedProjId;
+        const token = localStorage.getItem("token");
+        const response = await fetch("api/chat/conversations/add", {
+            method: "POST",
+            headers: {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + token
             },
-            body: JSON.stringify({projectId, title})
+            body: JSON.stringify({ projectId, title })
         })
         prop.setNewChat(false);
-        const data=await response.json();
-        setSelectedConversation(data.id);
+        const data = await response.json();
+        //setSelectedConversation(data);
     }
-    /*async function loadConversations(){
-        const token=localStorage.getItem("token");
-        const projectId=prop.sellectedProjId;
-        const response=await fetch("api/chat/conversations/load",{
+
+    async function addMessage(content: string, role: string) {
+        const token = localStorage.getItem("token");
+        const r = await fetch("api/chat/conversations/messages/add", {
             method: "POST",
-            headers:{
+            headers: {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + token
             },
-            body: JSON.stringify(projectId)
+            body: JSON.stringify({ convId: prop.selectedCOnversationId, content, role })
         })
-        const data = await response.json();
-        setConversationsByProjId(prev => ({
+        await loadMessages();
+    }
+    async function send() {
+        await addMessage(prompt, "User")
+        setAnswer("Thinking...");
+        /*const token = localStorage.getItem("token");
+        const r = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({ prompt }),
+        });
+
+        const data = await r.json();
+        setAnswer(data.answer);*/
+        await addMessage(answer, "AI");
+        //await loadMessages();
+
+    }
+    async function loadMessages() {
+        const token = localStorage.getItem("token");
+        const r = await fetch("api/chat/conversations/messages/load", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + token
+            },
+            body: JSON.stringify({ id: prop.selectedCOnversationId })
+        })
+
+        const data = await r.json();
+        setMessagesByConvId(prev => ({
             ...prev,
-            [projectId]: data
+            [prop.selectedCOnversationId]: data
         }));
-    }*/
-    async function addMessage(){}
+    }
+    useEffect(() => { loadMessages(); }, [prop.selectedCOnversationId])
     return (
         <Paper
             sx={{
                 height: "100%",
                 display: "flex",
-                flexDirection: "column"
+                flexDirection: "column",
+                minHeight: 0,
+                width:"600px"
             }}>
-            <Box sx={{
-                flex: 1,
-                p: 2,
-                overflowY: "auto",
-                border: "1px solid red"
-            }}>
-                {selectedConversation && selectedConversation.messages.map(m => {
-                    return <Box key={m.id} sx={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-                        <Paper>
-                            <Typography>{m.content}</Typography>
-                        </Paper>
-                    </Box>
-                })}
+            {messagesByConvId[prop.selectedCOnversationId] != null &&
+                <Box sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    p: 2,
+                    overflowY: "auto",
+                    border: "1px solid blue"
+                }}>
+                    {messagesByConvId[prop.selectedCOnversationId].map(m => {
+                        return <Box key={m.id} sx={{ display: "flex", justifyContent: m.role === "User" ? "flex-end" : "flex-start" }}>
+                            <Paper>
+                                <Typography>{m.content}</Typography>
+                            </Paper>
+                        </Box>
+                    })}
 
-            </Box>
+                </Box>
+            }
+
             <Box>
-                <TextField placeholder="What do you want to know?"></TextField>
-                <IconButton><SendIcon /></IconButton>
+                <TextField sx={{width:"550px"}} value={prompt} onChange={(e) => { setPrompt(e.currentTarget.value) }} placeholder="What do you want to know?"></TextField>
+                <IconButton onClick={send}><SendIcon /></IconButton>
             </Box>
-             {prop.newChat && <NewConversation open={prop.newChat} setOpen={prop.setNewChat} addConversation={addConversation}></NewConversation>}
+            {prop.newChat && <NewConversation open={prop.newChat} setOpen={prop.setNewChat} addConversation={addConversation}></NewConversation>}
         </Paper>
-       
-        );
+
+    );
 }

@@ -29,7 +29,7 @@ export function App() {
   const [conversationsByProjId, setConversationsByProjId] = useState<Record<number, Conversation[]>>({});
   const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
   const [selectedProject, setSelectedProject] = useState<Project>();
-  const [selectedProjectId,setSelectedProjectId]=useState<number>(-1);
+  const [selectedConversationId,setSelectedConversationId]=useState<number>(-1);
   const { route } = useLocation();
 
   const [isnewConversation, setIsNewConversation] = useState(false)
@@ -107,7 +107,7 @@ export function App() {
       }));
     }
   }
-  return (
+  /*return (
     <>
       <AppBar
         position="fixed"
@@ -119,7 +119,7 @@ export function App() {
           zIndex: (theme) => theme.zIndex.drawer + 1, // fontos: legyen a Drawer felett
         }}
       >
-        <Toolbar sx={{ height: HEADER_H, backgroundColor:/*"#0077b6*/"#03045e" }}>
+        <Toolbar sx={{ height: HEADER_H, backgroundColor:/*"#0077b6*"#03045e" }}>
           <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%",  }}>
             <Typography sx={{ fontWeight: 600, fontSize: 30, color:"white"}}>Mini chat</Typography>
             <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
@@ -129,18 +129,99 @@ export function App() {
               <IconButton onClick={logout}><LogoutIcon /></IconButton>
             </Box>
           </Box>
-
-
         </Toolbar>
       </AppBar>
 
-      {/* SIDEBAR */}
-      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile} loadConversations={loadConversations} conversatuionsByProjId={conversationsByProjId} newConv={isnewConversation} setNewConv={setIsNewConversation} /*selectedProjectId={selectedProjectId} setSelectedProjectId={setSelectedProjectId}*/></ProjectBar>
-      {selectedProject &&<ChatWindow newChat={isnewConversation} setNewChat={setIsNewConversation} sellectedProjId={selectedProject?.id}></ChatWindow>}
+      {/* SIDEBAR *}
+      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile} loadConversations={loadConversations} conversatuionsByProjId={conversationsByProjId} newConv={isnewConversation} setNewConv={setIsNewConversation} selectedConversationId={selectedConversationId} setSelectedConversationId={setSelectedConversationId}></ProjectBar>
+      {selectedProject &&<ChatWindow newChat={isnewConversation} setNewChat={setIsNewConversation} sellectedProjId={selectedProject?.id} selectedCOnversationId={selectedConversationId}></ChatWindow>}
       {selectedProject &&
         <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen} showWindowAddfile={showWindowFile} setShowWindowAddFile={setShowwindowFile}></RightPanel>
       }
     </>
-  )
+  )*/
+ return (
+  <>
+    <AppBar
+      position="fixed"
+      elevation={0}
+      sx={{
+        backgroundColor: "white",
+        color: "black",
+        borderBottom: "1px solid #eee",
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+      }}
+    >
+      <Toolbar sx={{ height: HEADER_H, backgroundColor: "#03045e" }}>
+        <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 30, color: "white" }}>
+            Mini chat
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
+            <Avatar sx={{ width: 32, height: 32 }}>
+              <img src={avatar} alt="Avatar" />
+            </Avatar>
+            <Typography sx={{ color: "white" }}>
+              {lastName} {firstName}
+            </Typography>
+            <IconButton onClick={logout}>
+              <LogoutIcon sx={{ color: "white" }} />
+            </IconButton>
+          </Box>
+        </Box>
+      </Toolbar>
+    </AppBar>
+
+    <Box
+      sx={{
+        display: "flex",
+        height: `calc(100vh - 100px)`,
+        mt: `${HEADER_H}px`,
+        minHeight: 0
+      }}
+    >
+      <ProjectBar
+        setSelectedProject={setSelectedProject}
+        shoWindowFile={showWindowFile}
+        setShowWindowFile={setShowwindowFile}
+        loadConversations={loadConversations}
+        conversatuionsByProjId={conversationsByProjId}
+        newConv={isnewConversation}
+        setNewConv={setIsNewConversation}
+        selectedConversationId={selectedConversationId}
+        setSelectedConversationId={setSelectedConversationId}
+      />
+
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          minHeight: 0,
+          display: "flex",
+          width:"100%"
+        }}
+      >
+        {selectedProject && (
+          <ChatWindow
+            newChat={isnewConversation}
+            setNewChat={setIsNewConversation}
+            sellectedProjId={selectedProject.id}
+            selectedCOnversationId={selectedConversationId}
+          />
+        )}
+      </Box>
+
+      {selectedProject && (
+        <RightPanel
+          projectSelected={selectedProject}
+          projOpen={projOpen}
+          setProjOpen={setProjOpen}
+          showWindowAddfile={showWindowFile}
+          setShowWindowAddFile={setShowwindowFile}
+        />
+      )}
+    </Box>
+  </>
+);
 }
 

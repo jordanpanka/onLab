@@ -22,7 +22,7 @@ public class ChatController : ControllerBase
 
         var result=await chatService.AddConversationAsync(data);
         if(!result.Ok)return BadRequest();
-        return Ok();
+        return Ok(result.Data);
     }
 
     [Authorize]
@@ -39,6 +39,34 @@ public class ChatController : ControllerBase
 
     }
 
+    [Authorize]
+    [HttpPost("conversations/messages/add")]
+
+    public async Task<IActionResult> AddMessage([FromBody] MessageData data)
+    {
+        var uidClaim=User.FindFirst("uid")?.Value;
+        if(uidClaim==null) return Unauthorized();
+
+        var result=await chatService.AddMessageAsync(data);
+        if(!result.Ok) return BadRequest();
+        return Ok();
+    }
+
+    [Authorize]
+    [HttpPost("conversations/messages/load")]
+
+    public async Task<IActionResult> LoadMessage([FromBody] Id data)
+    {
+        var uidClaim=User.FindFirst("uid")?.Value;
+        if(uidClaim==null) return Unauthorized();
+
+        var result=await chatService.LoadMessagesAsync(data);
+        if(!result.Ok)return BadRequest();
+        return Ok(result.Data);
+    }
 
 }
 public record ConversationData(int projectId, string title);
+public record Id(int id);
+
+public record MessageData(int convId, string content, string role);

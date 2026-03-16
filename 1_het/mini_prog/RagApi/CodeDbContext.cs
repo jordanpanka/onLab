@@ -14,6 +14,7 @@ public class CodeDbContext : DbContext
     public DbSet<DbFile> Files { get; set; }
     public DbSet<DbConversation> Conversations {get; set;}
 
+    public DbSet<DbMessage> Messages {get; set;}
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

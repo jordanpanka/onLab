@@ -30,8 +30,8 @@ type pbProps = {
     loadConversations:(s:number)=>void,
     newConv:boolean,
     setNewConv:(b:boolean)=>void,
-    //selectedProjectId:number,
-    //setSelectedProjectId:(n:number)=>void
+    selectedConversationId:number,
+    setSelectedConversationId:(n:number)=>void
 
 }
 const openwidth = 240;
@@ -43,7 +43,7 @@ export function ProjectBar(prop: pbProps
     const [projectsByInvId, setProjectsByInvId] = useState<Record<number, Project[]>>({});
     const [investigations, setInvestigations] = useState<Investigation[]>([]);
 
-    const [selectedConversationId, setSelectedConversationId]=useState<number>(-1);
+    //const [selectedConversationId, setSelectedConversationId]=useState<number>(-1);
     const [selectedInvId, setSelectedInvId] = useState<number>(-1);
     const [selectedProjectId, setSelectedProjectId] = useState<number>(-1);
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
@@ -201,13 +201,14 @@ export function ProjectBar(prop: pbProps
                                                     }
                                                 }} onClick={async () => {
                                                     
-                                                   
+                                                    await prop.loadConversations(project.id); 
+                                                    setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
                                                     setSelectedProjectId(project.id);
                                                     prop.setSelectedProject(project);
-                                                    if(projOpen[project.id]){
+                                                    /*if(projOpen[project.id]){
                                                       await prop.loadConversations(project.id);
-                                                    } 
-                                                    setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
+                                                    } */
+                                                   
                                                 }}>
                                                     {/*isProjOpen ? "📂" : "📁"*/}
                                                     <span style={{ fontSize: 20, color:"#03045e" }}>{isProjOpen ? "◇" : "◆"}</span>
@@ -244,7 +245,7 @@ export function ProjectBar(prop: pbProps
                                                                     }} onClick={async () => {
                                                                         
                                                                         //setConvOpen(s => ({ ...s, [conv.id]: !s[conv.id] }));
-                                                                        setSelectedConversationId(conv.id);
+                                                                        prop.setSelectedConversationId(conv.id);
                                     
                                                                     }}>
                                                                        
