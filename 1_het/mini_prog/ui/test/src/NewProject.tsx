@@ -7,7 +7,8 @@ type npProps = {
     invId?: number,
     open: boolean,
     setOpen: (b: boolean) => void,
-    loadInvestigations: () => void
+    loadInvestigations: () => void,
+    loadProjects:(id:number)=>void
 }
 export function NewProject(props: npProps) {
     const [name, setName] = useState("");
@@ -25,10 +26,10 @@ export function NewProject(props: npProps) {
         })
 
         props.setOpen(false);
-        props.loadInvestigations();
+        await props.loadInvestigations();
     }
     async function addProject() {
-        if (!props.invId) return;
+        if (props.invId == null) return;
         const invid = props.invId;
         const token = localStorage.getItem("token");
         const response = await fetch("api/investigations/projects/add", {
@@ -40,6 +41,7 @@ export function NewProject(props: npProps) {
             body: JSON.stringify({ invid, name, description })
         })
         props.setOpen(false);
+        await props.loadProjects(invid);
 
     }
     return (<>

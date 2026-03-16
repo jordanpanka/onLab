@@ -52,7 +52,7 @@ export function ProjectBar(prop: pbProps
     const [showInvWindow, setShowInvwindow] = useState(false);
     const [showProjWindow, setShowProjwindow] = useState(false);
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-    const [menuState, setMenuState] = useState<"file" | "project" | null>(null);
+    const [menuState, setMenuState] = useState<"file" | "project" |"investigation"|"conversation"| null>(null);
 
     async function addFile() {
         prop.setShowWindowFile(true);
@@ -102,7 +102,7 @@ export function ProjectBar(prop: pbProps
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ id: selectedInvId })
         })
-        loadInvestigations();
+        await loadInvestigations();
         setAnchor(null);
 
     }
@@ -114,9 +114,10 @@ export function ProjectBar(prop: pbProps
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ id })
         })
+        await loadProjects(selectedInvId);
     }
     //open menu
-    function openInvMenu(e: MouseEvent, type: "file" | "project") {
+    function openInvMenu(e: MouseEvent, type: "file" | "project" | "conversation" |"investigation") {
         e.stopPropagation();
         setAnchor(e.currentTarget as HTMLElement);
         setMenuState(type);
@@ -177,7 +178,7 @@ export function ProjectBar(prop: pbProps
                                 <ListItemText primary={inv.name}></ListItemText>
                                 <IconButton className="row-menu"
                                     size="small"
-                                    onClick={(e) => { openInvMenu(e, "project"); setSelectedInvId(inv.id); }}
+                                    onClick={(e) => { openInvMenu(e, "investigation"); setSelectedInvId(inv.id); }}
                                     sx={{
                                         p: 0.5,
                                         opacity: 0,
@@ -217,7 +218,7 @@ export function ProjectBar(prop: pbProps
                                                     <IconButton
                                                         className="row-menu"
                                                         size="small"
-                                                        onClick={(e) => { openInvMenu(e, "file"); setSelectedProjectId(project.id); }}
+                                                        onClick={(e) => { openInvMenu(e, "project"); setSelectedProjectId(project.id); }}
                                                         sx={{
                                                             p: 0,
                                                             width: 20,
@@ -289,12 +290,12 @@ export function ProjectBar(prop: pbProps
                 })}
             </List>
         </Drawer >
-        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation} addConversation={addConv}></RowMenu>
+        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation} deleteProj={deleteProject} addConversation={addConv}></RowMenu>
         {showInvWindow &&
-            <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
+            <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations} loadProjects={loadProjects}></NewProject>
         }
         {showProjWindow &&
-            <NewProject isInv={false} invId={selectedInvId} open={showProjWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations}></NewProject>
+            <NewProject isInv={false} invId={selectedInvId} open={showProjWindow} setOpen={setShowProjwindow} loadInvestigations={loadInvestigations} loadProjects={loadProjects}></NewProject>
         }
     </>)
 

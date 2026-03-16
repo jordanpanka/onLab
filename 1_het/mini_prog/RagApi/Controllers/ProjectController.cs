@@ -85,6 +85,18 @@ public class ProjectController : ControllerBase
         if(!response.Ok) return BadRequest(response.Error);
         return Ok();
     }
+
+    [Authorize]
+    [HttpPost("projects/delete")]
+    public async Task<IActionResult> DeleteProjects([FromBody] Id data)
+    {
+        var uidClaim = User.FindFirst("uid");
+        if (uidClaim == null) return Unauthorized("Missing uid claim");
+
+        var response= await projectService.DeleteProjectAsync(data);
+        if(!response.Ok) return BadRequest(response.Error);
+        return Ok();
+    }
 }
 public record FilesData(int id, int projectId);
 public record ProjectData(int invid, string name, string description);

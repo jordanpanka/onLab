@@ -1,21 +1,23 @@
 import { Menu, MenuItem } from "@mui/material";
 
-type rmProps={
+type rmProps = {
     anchor: HTMLElement | null,
-    setAnchor: (a:HTMLElement | null)=>void,
-    addFile:()=>void,
-    addProj:()=>void,
-    type:"project" |"file" |null
+    setAnchor: (a: HTMLElement | null) => void,
+    addFile: () => void,
+    addProj: () => void,
+    type: "project" | "file" | "conversation" |"investigation" | null
     /*rename:()=>void,*/
-    deleteInv:()=>void,
-    addConversation:()=>void
+    deleteInv: () => void,
+    deleteProj: () => void,
+    //deleteConv: () => void,
+    addConversation: () => void
 
 
 }
-export function RowMenu(prop:rmProps){
-    async function handleAddClick(){
-        switch(prop.type){
-            case "project":
+export function RowMenu(prop: rmProps) {
+    async function handleAddClick() {
+        switch (prop.type) {
+            case "investigation":
                 prop.addProj();
                 return;
             case "file":
@@ -23,12 +25,30 @@ export function RowMenu(prop:rmProps){
                 return;
         }
     }
+    async function deleteClick() {
+        switch (prop.type) {
+            case "investigation":
+
+                prop.deleteInv();
+                return;
+            case "project":
+
+                prop.deleteProj();
+                return;
+
+            case "conversation":
+               // prop.deleteConv();
+                return;
+
+        }
+
+    }
     return (
-        <Menu anchorEl={prop.anchor} open={!!prop.anchor} onClose={()=>prop.setAnchor(null)}>
-            {prop.type=="file" && <MenuItem onClick={prop.addConversation}>Add new conversation</MenuItem>}
-            <MenuItem onClick={prop.type=="project" ? prop.addProj :prop.addFile}>{prop.type=="project" ? "Add new project": "Add new file"} </MenuItem>
+        <Menu anchorEl={prop.anchor} open={!!prop.anchor} onClose={() => prop.setAnchor(null)}>
+            {prop.type == "file" && <MenuItem onClick={prop.addConversation}>Add new conversation</MenuItem>}
+            <MenuItem onClick={handleAddClick}>{prop.type == "project" ? "Add new project" : "Add new file"} </MenuItem>
             <MenuItem>Rename</MenuItem>
-            <MenuItem onClick={prop.deleteInv}>Delete</MenuItem>
+            <MenuItem onClick={deleteClick}>Delete</MenuItem>
         </Menu>
     );
 }

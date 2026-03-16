@@ -113,4 +113,14 @@ public class ProjectService
         return ServiceResult.Success();
     }
 
+    public async Task<ServiceResult> DeleteProjectAsync(Id data)
+    {
+        var exist= await codeDbContext.Projects.SingleOrDefaultAsync(x=>x.ID==data.id);
+        if(exist==null) return ServiceResult.Fail("Project doesn't exist");
+
+        codeDbContext.Projects.Remove(exist);
+        await codeDbContext.SaveChangesAsync();
+        return ServiceResult.Success();
+    }
+
 }
