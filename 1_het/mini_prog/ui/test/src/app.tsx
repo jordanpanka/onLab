@@ -201,7 +201,7 @@ export function App() {
           width:"100%"
         }}
       >
-        {selectedProject && (
+        {selectedProject && selectedConversationId!=-1 && (
           <ChatWindow
             newChat={isnewConversation}
             setNewChat={setIsNewConversation}

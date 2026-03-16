@@ -43,12 +43,29 @@ export function RowMenu(prop: rmProps) {
         }
 
     }
+    function getNewLabel():string{
+        switch (prop.type) {
+            case "investigation":
+                return "Add new Project";
+            case "project":
+                return "Add new File";
+            case "conversation":
+                return "Add new File";
+            default:
+                return "";
+        }
+                
+    }
+    async function run(action:()=>void){
+        action();
+        prop.setAnchor(null);
+    }
     return (
         <Menu anchorEl={prop.anchor} open={!!prop.anchor} onClose={() => prop.setAnchor(null)}>
-            {prop.type == "file" && <MenuItem onClick={prop.addConversation}>Add new conversation</MenuItem>}
-            <MenuItem onClick={handleAddClick}>{prop.type == "project" ? "Add new project" : "Add new file"} </MenuItem>
+            {prop.type == "project" && <MenuItem onClick={prop.addConversation}>Add new conversation</MenuItem>}
+            <MenuItem onClick={()=>run(handleAddClick)}>{getNewLabel()}</MenuItem>
             <MenuItem>Rename</MenuItem>
-            <MenuItem onClick={deleteClick}>Delete</MenuItem>
+            <MenuItem onClick={()=>run(deleteClick)}>Delete</MenuItem>
         </Menu>
     );
 }
