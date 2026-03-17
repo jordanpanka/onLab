@@ -77,14 +77,14 @@ builder.Services
       {
           OnMessageReceived = context =>
             {
-      Console.WriteLine("RAW AUTH HEADER: " + context.Request.Headers.Authorization);
-      return Task.CompletedTask;
-  },
+                Console.WriteLine("RAW AUTH HEADER: " + context.Request.Headers.Authorization);
+                return Task.CompletedTask;
+            },
           OnAuthenticationFailed = context =>
             {
-      Console.WriteLine("JWT ERROR: " + context.Exception);
-      return Task.CompletedTask;
-  }
+                Console.WriteLine("JWT ERROR: " + context.Exception);
+                return Task.CompletedTask;
+            }
       };
   });
 builder.Services.AddAuthorization();
@@ -117,7 +117,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<CodeDbContext>();
     db.Database.Migrate();
 }
-/*app.MapGet("/", () => "RagApi fut ✅");
+/*app.MapGet("/", () => "RagApi fut ✅");*/
 
 const string Qdrant = "http://localhost:6333";
 const string Collection = "docs";
@@ -142,6 +142,18 @@ static async Task EnsureCollection(HttpClient http)
     var create = await http.PutAsJsonAsync($"{Qdrant}/collections/{Collection}", createPayload);
     create.EnsureSuccessStatusCode();
 }
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    _ = Task.Run(async () =>
+    {
+        using var scopeHttp = new HttpClient();
+        await EnsureCollection(scopeHttp);
+    });
+
+
+});
+
+/*
 static string ExtractTextFromPdf(IFormFile file)
 {
     using var ms = new MemoryStream();
@@ -202,17 +214,7 @@ static async Task<float[]> Embed(HttpClient http, string text)
        .ToArray();
 }
 
-//Check if the collection already exists or not
-app.Lifetime.ApplicationStarted.Register(() =>
-{
-    _ = Task.Run(async () =>
-    {
-        using var scopeHttp = new HttpClient();
-        await EnsureCollection(scopeHttp);
-    });
-
-
-});
+//
 app.MapPost("api/register", async (CodeDbContext db,RegisterData data) =>
 {
     var email=data.email.Trim().ToLowerInvariant();
@@ -229,7 +231,7 @@ app.MapPost("api/register", async (CodeDbContext db,RegisterData data) =>
     db.SaveChanges();
     return Results.Ok();
 
-});
+});/*
 app.MapPost("/api/docs", async (HttpClient http, IFormFile document) =>
 {
     string text="";
@@ -367,7 +369,7 @@ app.MapControllers();
 app.Run();
 
 
-record ChatRequest(string Prompt);
+public record ChatRequest(string prompt);
 public record RegisterData(string email, string password, string firstName, string lastName);
 
 

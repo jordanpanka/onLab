@@ -60,8 +60,8 @@ export function ChatWindow(prop: cProps) {
     async function send() {
         await addMessage(prompt, "User")
         setAnswer("Thinking...");
-        /*const token = localStorage.getItem("token");
-        const r = await fetch("/api/chat", {
+        const token = localStorage.getItem("token");
+        const r = await fetch("/api/chat/send", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -71,9 +71,10 @@ export function ChatWindow(prop: cProps) {
         });
 
         const data = await r.json();
-        setAnswer(data.answer);*/
-        await addMessage(answer, "AI");
-        //await loadMessages();
+        setAnswer(data.answer);
+        setPrompt("");
+        await addMessage(data.answer, "AI");
+        
 
     }
     async function loadMessages() {

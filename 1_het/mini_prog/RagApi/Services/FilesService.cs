@@ -2,23 +2,31 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using ef;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using UglyToad.PdfPig;
 
 public class FileService
 {
     private readonly CodeDbContext codeDbContext;
+    private readonly HttpClient httpClient;
+    private readonly IConfiguration configuration;
 
-    public FileService(CodeDbContext cdb)
+    public FileService(CodeDbContext cdb, HttpClient http, IConfiguration iconf)
     {
-        codeDbContext=cdb;
+        codeDbContext = cdb;
+        httpClient=http;
+        configuration=iconf;
     }
     private string NormalizeRelativePath(string path)
     {
-         path = path.Replace("\\", "/").Trim();
+        path = path.Replace("\\", "/").Trim();
 
         while (path.StartsWith("/"))
             path = path[1..];
@@ -30,30 +38,30 @@ public class FileService
     }
     public async Task<ServiceResult> UploadAsync(int pid, List<IFormFile> files, List<string> paths)
     {
-        if(files.Count==0 || paths.Count==0)
+        if (files.Count == 0 || paths.Count == 0)
             return ServiceResult.Fail("Files and paths count doesn't exist.");
 
         if (files.Count != paths.Count)
         {
             return ServiceResult.Fail("The number of files and paths doesn1t match.");
         }
-        var projexist=await codeDbContext.Projects.AnyAsync(x=>x.ID==pid);
-        if(!projexist) return ServiceResult.Fail("The project doesn't exist.");
+        var projexist = await codeDbContext.Projects.AnyAsync(x => x.ID == pid);
+        if (!projexist) return ServiceResult.Fail("The project doesn't exist.");
 
-        for(int i=0; i<files.Count; i++)
+        for (int i = 0; i < files.Count; i++)
         {
-            var file=files[i];
-            var relativePath=string.IsNullOrWhiteSpace(paths[i])? file.FileName : paths[i];
+            var file = files[i];
+            var relativePath = string.IsNullOrWhiteSpace(paths[i]) ? file.FileName : paths[i];
 
             if (file.FileName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             {
-                var response=await SaveFileAsZip(pid,file,relativePath);
-                if(!response.Ok)return ServiceResult.Fail("");
+                var response = await SaveFileAsZip(pid, file, relativePath);
+                if (!response.Ok) return ServiceResult.Fail("");
             }
             else
             {
-                var response=await SaveFileAsNormal(pid,file,relativePath);
-                if(!response.Ok) return ServiceResult.Fail("");
+                var response = await SaveFileAsNormal(pid, file, relativePath);
+                if (!response.Ok) return ServiceResult.Fail("");
             }
         }
         await codeDbContext.SaveChangesAsync();
@@ -79,21 +87,142 @@ public class FileService
                 ProjectID = pid,
                 Name = entry.Name,
                 RelativePath = entryRelativePath,
-                StoragePath ="",
+                StoragePath = "",
                 Extension = extension,
-                ContentType =file.ContentType ?? "" ,
+                ContentType = file.ContentType ?? "",
                 Size = entry.Length
             };
 
             codeDbContext.Files.Add(dbFile);
         }
         return ServiceResult.Success();
-        
+
     }
     public async Task<ServiceResult> SaveFileAsNormal(int pid, IFormFile file, string path)
     {
-        var fileSave=new DbFile{ProjectID=pid,Name=file.FileName, RelativePath=NormalizeRelativePath(path),StoragePath="", Size=file.Length, ContentType=file.ContentType , Extension=Path.GetExtension(file.FileName)};
+        var fileSave = new DbFile { ProjectID = pid, Name = file.FileName, RelativePath = NormalizeRelativePath(path), StoragePath = "", Size = file.Length, ContentType = file.ContentType, Extension = Path.GetExtension(file.FileName) };
         codeDbContext.Files.Add(fileSave);
+        return ServiceResult.Success();
+    }
+    static string ExtractTextFromPdf(IFormFile file)
+    {
+        using var ms = new MemoryStream();
+        file.CopyTo(ms);
+        ms.Position = 0;
+
+        var sb = new StringBuilder();
+
+        using (var pdf = PdfDocument.Open(ms))
+        {
+            foreach (var page in pdf.GetPages())
+            {
+                sb.AppendLine(page.Text);
+            }
+        }
+
+        return sb.ToString();
+    }
+    static string ExtractTextFromDocx(IFormFile file)
+    {
+        using var ms = new MemoryStream();
+        file.CopyTo(ms);
+        ms.Position = 0;
+
+        using var doc = WordprocessingDocument.Open(ms, false);
+        var body = doc.MainDocumentPart?.Document?.Body;
+
+        if (body is null) return "";
+
+        // Body.InnerText egyszerű, de működik: összefűzi a szöveget
+        return body.InnerText;
+    }
+    static List<string> chunkText(string text, int chunkLength, int redundance)
+    {
+        var list = new List<string>();
+        int i = 0;
+        while (i < text.Length)
+        {
+            int len = Math.Min(chunkLength, text.Length - i);
+            var chunk = text.Substring(i, len);
+            list.Add(chunk);
+            i += chunkLength - redundance;
+            if (chunkLength - redundance <= 0) break;
+        }
+        return list;
+    }
+    private async Task<float[]> Embed(HttpClient http, string text)
+    {
+
+        var payload = new { model = configuration["AI:EmbedModel"], prompt = text };
+        var response = await http.PostAsJsonAsync($"{configuration["AI:QdrantUrl"]}/api/embeddings", payload);
+        response.EnsureSuccessStatusCode();
+
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        return doc.RootElement.GetProperty("embedding")
+           .EnumerateArray()
+           .Select(x => x.GetSingle())
+           .ToArray();
+    }
+    public async Task<ServiceResult> UploadQdrantAsync(List<IFormFile> files)
+    {
+        foreach (var document in files)
+        {
+            string text = "";
+
+            if (document is null || document.Length == 0)
+                return ServiceResult.Fail("File is empty");
+
+            var docName = Path.GetFileName(document.FileName);
+            var ext = Path.GetExtension(docName).ToLowerInvariant();
+            //document->string
+            if (ext == ".txt")
+            {
+                using var reader = new StreamReader(document.OpenReadStream(), Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+                text = await reader.ReadToEndAsync();
+            }
+            else if (ext == ".pdf")
+            {
+                text = ExtractTextFromPdf(document);
+            }
+            else if (ext == ".docx")
+            {
+
+            }
+            else
+            {
+                return ServiceResult.Fail(".pdf or .txt required");
+            }
+            if (string.IsNullOrWhiteSpace(text))
+                return ServiceResult.Fail("Nem sikerült szöveget kinyerni a fájlból (lehet, hogy szkennelt PDF).");
+
+            //Text -> chunks
+            var chunk = chunkText(text, 800, 170);
+
+            //Chunks -> vector
+            var points = new List<object>();
+            for (int i = 0; i < chunk.Count; i++)
+            {
+                var point = await Embed(httpClient, chunk[i]);
+                points.Add(new
+                {
+                    id = Guid.NewGuid().ToString(),
+                    vector = point,
+                    payload = new
+                    {
+                        docName = document.Name,
+                        chunkText = i,
+                        text = chunk[i]
+                    }
+                });
+            }
+            //chunks -> qdrant
+            var upsertPayload = new { points };
+            var upsertRes = await httpClient.PutAsJsonAsync($"{configuration["AI:QdrantUrl"]}/collections/{configuration["AI:Collection"]}/points?wait=true", upsertPayload);
+            upsertRes.EnsureSuccessStatusCode();
+
+            //return ServiceResult.Success(new { uploaded = docName, chunks = chunk.Count });
+
+        }
         return ServiceResult.Success();
     }
 }

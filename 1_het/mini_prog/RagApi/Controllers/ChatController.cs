@@ -65,6 +65,20 @@ public class ChatController : ControllerBase
         return Ok(result.Data);
     }
 
+    [Authorize]
+    [HttpPost("send")]
+    public async Task<IActionResult> SendMessage([FromBody] ChatRequest prompt)
+    {
+        var uidClaim=User.FindFirst("uid")?.Value;
+        if(uidClaim==null) return Unauthorized();
+
+        var result=await chatService.SendMessageAsync(prompt);
+        Console.WriteLine("BOLDOGSÁÁÁÁÁÁÁG\n");
+       // if(!result.Ok) return BadRequest(result.Error);
+        if (!result.Ok) return BadRequest(new { error = result.Error });
+        return Ok(result.Data);
+    }
+
 }
 public record ConversationData(int projectId, string title);
 public record Id(int id);

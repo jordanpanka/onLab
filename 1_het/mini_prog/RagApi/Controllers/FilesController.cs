@@ -26,6 +26,9 @@ public class FilesController : ControllerBase
 
         var response=await filesService.UploadAsync(projectId,files,paths);
         if(!response.Ok) return BadRequest();
+
+        var result=await filesService.UploadQdrantAsync(files);
+        if(!result.Ok) return BadRequest();
         return Ok();
         
     }
