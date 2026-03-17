@@ -36,5 +36,17 @@ public class CodeDbContext : DbContext
             .WithMany(f=>f.Files)
             .HasForeignKey(f=>f.ProjectID)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DbConversation>()
+            .HasOne(p=>p.Project)
+            .WithMany(c=>c.Conversations)
+            .HasForeignKey(c=>c.ProjectID)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DbMessage>()
+            .HasOne(c=>c.Conversation)
+            .WithMany(m=>m.Messages)
+            .HasForeignKey(m=>m.ConversationID)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

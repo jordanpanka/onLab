@@ -9,7 +9,7 @@ type rmProps = {
     /*rename:()=>void,*/
     deleteInv: () => void,
     deleteProj: () => void,
-    //deleteConv: () => void,
+    deleteConv: () => void,
     addConversation: () => void
 
 
@@ -37,7 +37,7 @@ export function RowMenu(prop: rmProps) {
                 return;
 
             case "conversation":
-               // prop.deleteConv();
+                prop.deleteConv();
                 return;
 
         }

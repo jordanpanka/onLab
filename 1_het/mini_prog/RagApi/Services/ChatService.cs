@@ -63,6 +63,15 @@ public class ChatService
         /////nem jó az include még
 
     }
+    public async Task<ServiceResult> DeleteConversationAsync(Id data)
+    {
+        var exist=await db.Conversations.SingleOrDefaultAsync(x=>x.ID==data.id);
+        if(exist==null) return ServiceResult.Fail("Conversation doesn't exist");
+
+        db.Conversations.Remove(exist);
+        await db.SaveChangesAsync();
+        return ServiceResult.Success();
+    }
     public async Task<ServiceResult> AddMessageAsync(MessageData data)
     {
         var exist = await db.Conversations.AnyAsync(x => x.ID == data.convId);

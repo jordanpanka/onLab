@@ -40,6 +40,18 @@ public class ChatController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("conversations/delete")]
+    public async Task<IActionResult> DeleteConversation([FromBody] Id data)
+    {
+        var uidClaim = User.FindFirst("uid")?.Value;
+        if (uidClaim == null) return Unauthorized();
+
+        var result=await chatService.DeleteConversationAsync(data);
+        if(!result.Ok) return BadRequest(result.Error);
+        return Ok();
+    }
+
+    [Authorize]
     [HttpPost("conversations/messages/add")]
 
     public async Task<IActionResult> AddMessage([FromBody] MessageData data)

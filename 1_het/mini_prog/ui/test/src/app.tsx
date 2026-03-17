@@ -107,39 +107,6 @@ export function App() {
       }));
     }
   }
-  /*return (
-    <>
-      <AppBar
-        position="fixed"
-        elevation={0}
-        sx={{
-          backgroundColor: "white",
-          color: "black",
-          borderBottom: "1px solid #eee",
-          zIndex: (theme) => theme.zIndex.drawer + 1, // fontos: legyen a Drawer felett
-        }}
-      >
-        <Toolbar sx={{ height: HEADER_H, backgroundColor:/*"#0077b6*"#03045e" }}>
-          <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%",  }}>
-            <Typography sx={{ fontWeight: 600, fontSize: 30, color:"white"}}>Mini chat</Typography>
-            <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
-              <Avatar sx={{ width: 32, height: 32 }}><img src={avatar} alt="Avatar"></img></Avatar>
-              <Typography>{lastName} {firstName}</Typography>
-
-              <IconButton onClick={logout}><LogoutIcon /></IconButton>
-            </Box>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
-      {/* SIDEBAR *}
-      <ProjectBar setSelectedProject={setSelectedProject} shoWindowFile={showWindowFile} setShowWindowFile={setShowwindowFile} loadConversations={loadConversations} conversatuionsByProjId={conversationsByProjId} newConv={isnewConversation} setNewConv={setIsNewConversation} selectedConversationId={selectedConversationId} setSelectedConversationId={setSelectedConversationId}></ProjectBar>
-      {selectedProject &&<ChatWindow newChat={isnewConversation} setNewChat={setIsNewConversation} sellectedProjId={selectedProject?.id} selectedCOnversationId={selectedConversationId}></ChatWindow>}
-      {selectedProject &&
-        <RightPanel projectSelected={selectedProject} projOpen={projOpen} setProjOpen={setProjOpen} showWindowAddfile={showWindowFile} setShowWindowAddFile={setShowwindowFile}></RightPanel>
-      }
-    </>
-  )*/
  return (
   <>
     <AppBar
@@ -175,8 +142,9 @@ export function App() {
     <Box
       sx={{
         display: "flex",
-        height: `calc(100vh - 100px)`,
+        height: `calc(100vh - 56px)`,
         mt: `${HEADER_H}px`,
+        overflow:"hidden",
         minHeight: 0
       }}
     >
@@ -198,7 +166,10 @@ export function App() {
           minWidth: 0,
           minHeight: 0,
           display: "flex",
-          width:"100%"
+          justifyContent: "center",
+          width:"100%",
+          overflow:'hidden'
+          
         }}
       >
         {selectedProject && selectedConversationId!=-1 && (
@@ -207,6 +178,7 @@ export function App() {
             setNewChat={setIsNewConversation}
             sellectedProjId={selectedProject.id}
             selectedCOnversationId={selectedConversationId}
+            setSelectedConversationId={setSelectedConversationId}
           />
         )}
       </Box>

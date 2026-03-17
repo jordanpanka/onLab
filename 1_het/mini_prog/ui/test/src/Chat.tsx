@@ -20,7 +20,8 @@ type cProps = {
     newChat: boolean,
     setNewChat: (b: boolean) => void,
     sellectedProjId: number,
-    selectedCOnversationId: number
+    selectedCOnversationId: number, 
+    setSelectedConversationId:(id:number)=>void
 }
 export function ChatWindow(prop: cProps) {
     const [conversationsByProjId, setConversationsByProjId] = useState<Record<number, Conversation[]>>({});
@@ -42,7 +43,7 @@ export function ChatWindow(prop: cProps) {
         })
         prop.setNewChat(false);
         const data = await response.json();
-        //setSelectedConversation(data);
+        prop.setSelectedConversationId(data);
     }
 
     async function addMessage(content: string, role: string) {
@@ -74,7 +75,7 @@ export function ChatWindow(prop: cProps) {
         setAnswer(data.answer);
         setPrompt("");
         await addMessage(data.answer, "AI");
-        
+
 
     }
     async function loadMessages() {
@@ -102,7 +103,8 @@ export function ChatWindow(prop: cProps) {
                 display: "flex",
                 flexDirection: "column",
                 minHeight: 0,
-                width:"600px"
+                width: "100%",
+                overflow: "hidden"
             }}>
             {messagesByConvId[prop.selectedCOnversationId] != null &&
                 <Box sx={{
@@ -110,12 +112,27 @@ export function ChatWindow(prop: cProps) {
                     minHeight: 0,
                     p: 2,
                     overflowY: "auto",
-                    border: "1px solid blue"
+
                 }}>
                     {messagesByConvId[prop.selectedCOnversationId].map(m => {
-                        return <Box key={m.id} sx={{ display: "flex", justifyContent: m.role === "User" ? "flex-end" : "flex-start" }}>
-                            <Paper>
-                                <Typography>{m.content}</Typography>
+                        return <Box
+                            key={m.id}
+                            sx={{
+                                display: "flex",
+                                justifyContent: m.role === "User" ? "flex-end" : "flex-start",
+                                mr: "50px",
+                                ml: "50px"
+
+                            }}>
+                            <Paper
+                                sx={{
+                                    //backgroundColor: m.role === "User" ? "white" : "#0077B6",
+                                    margin: "1px",
+                                    mt: "5px",
+                                    mb: "5px"
+
+                                }}>
+                                <Typography sx={{margin:"10px"}}>{m.content}</Typography>
                             </Paper>
                         </Box>
                     })}
@@ -123,8 +140,18 @@ export function ChatWindow(prop: cProps) {
                 </Box>
             }
 
-            <Box>
-                <TextField sx={{width:"550px"}} value={prompt} onChange={(e) => { setPrompt(e.currentTarget.value) }} placeholder="What do you want to know?"></TextField>
+            <Box sx={{
+                display: "flex",
+                mr: "50px",
+                ml: "50px",
+                mb: "40px"
+            }}>
+                <TextField sx={{
+                    width: "100%",
+                    "& .MuiOutlinedInput-root": {
+                        borderRadius: "16px"
+                    }
+                }} value={prompt} onChange={(e) => { setPrompt(e.currentTarget.value) }} placeholder="What do you want to know?"></TextField>
                 <IconButton onClick={send}><SendIcon /></IconButton>
             </Box>
             {prop.newChat && <NewConversation open={prop.newChat} setOpen={prop.setNewChat} addConversation={addConversation}></NewConversation>}

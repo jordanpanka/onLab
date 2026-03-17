@@ -116,6 +116,16 @@ export function ProjectBar(prop: pbProps
         })
         await loadProjects(selectedInvId);
     }
+    async function deleteConversation(){
+        const token=localStorage.getItem("token");
+        const response=await fetch("api/chat/conversations/delete",{
+            method:"POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({id:prop.selectedConversationId})
+        })
+        await prop.loadConversations(selectedProjectId);
+
+    }
     //open menu
     function openInvMenu(e: MouseEvent, type: "file" | "project" | "conversation" |"investigation") {
         e.stopPropagation();
@@ -256,7 +266,7 @@ export function ProjectBar(prop: pbProps
                                                                         <IconButton
                                                                             className="row-menu"
                                                                             size="small"
-                                                                            onClick={(e) => { openInvMenu(e, "file"); setSelectedProjectId(project.id); }}
+                                                                            onClick={(e) => { openInvMenu(e, "conversation"); setSelectedProjectId(project.id);setSelectedInvId(inv.id); }}
                                                                             sx={{
                                                                                 p: 0,
                                                                                 width: 20,
@@ -290,7 +300,7 @@ export function ProjectBar(prop: pbProps
                 })}
             </List>
         </Drawer >
-        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation} deleteProj={deleteProject} addConversation={addConv}></RowMenu>
+        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation} deleteProj={deleteProject} addConversation={addConv} deleteConv={deleteConversation}></RowMenu>
         {showInvWindow &&
             <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations} loadProjects={loadProjects}></NewProject>
         }
