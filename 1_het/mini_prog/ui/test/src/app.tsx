@@ -36,7 +36,6 @@ export function App() {
   const [isnewConversation, setIsNewConversation] = useState(false)
   useEffect(() => {
     if (!localStorage.getItem("token")) {
-
       route("/login");
     }
   }, []);
@@ -151,6 +150,8 @@ export function App() {
     >
       <ProjectBar
         setSelectedProject={setSelectedProject}
+        selectedProjectId={selectedProjectId}
+        setSelectedProjectId={setSelectedProjectId}
         shoWindowFile={showWindowFile}
         setShowWindowFile={setShowwindowFile}
         loadConversations={loadConversations}
@@ -173,7 +174,7 @@ export function App() {
           
         }}
       >
-        {selectedProjectId!=-1 && (
+        {/*selectedProjectId!=-1 && */(
           <ChatWindow
             newChat={isnewConversation}
             setNewChat={setIsNewConversation}

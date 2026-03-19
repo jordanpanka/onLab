@@ -24,6 +24,8 @@ export type Investigation = {
 }
 type pbProps = {
     setSelectedProject: Dispatch<StateUpdater<Project | undefined>>,
+    selectedProjectId:number,
+    setSelectedProjectId:(n:number)=>void,
     shoWindowFile: boolean,
     setShowWindowFile: (b: boolean) => void,
     conversatuionsByProjId: Record<number, Conversation[]>,
@@ -45,7 +47,7 @@ export function ProjectBar(prop: pbProps
 
     //const [selectedConversationId, setSelectedConversationId]=useState<number>(-1);
     const [selectedInvId, setSelectedInvId] = useState<number>(-1);
-    const [selectedProjectId, setSelectedProjectId] = useState<number>(-1);
+    //const [selectedProjectId, setSelectedProjectId] = useState<number>(-1);
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
     const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
     const [open, setOpen] = useState(true);
@@ -116,7 +118,7 @@ export function ProjectBar(prop: pbProps
     }
     async function deleteProject() {
         const token = localStorage.getItem("token");
-        const id = selectedProjectId;
+        const id = prop.selectedProjectId;
         const response = await fetch("api/investigations/projects/delete", {
             method: "Post",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
@@ -131,7 +133,7 @@ export function ProjectBar(prop: pbProps
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ id: prop.selectedConversationId })
         })
-        await prop.loadConversations(selectedProjectId);
+        await prop.loadConversations(prop.selectedProjectId);
 
     }
     async function rename() {
@@ -152,7 +154,7 @@ export function ProjectBar(prop: pbProps
         const response = await fetch("api/investigations/projects/rename", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ id: selectedProjectId, name: newName })
+            body: JSON.stringify({ id: prop.selectedProjectId, name: newName })
         })
         await loadProjects(selectedInvId);
     }
@@ -163,7 +165,7 @@ export function ProjectBar(prop: pbProps
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ id: prop.selectedConversationId, name: newName })
         })
-        await prop.loadConversations(selectedProjectId);
+        await prop.loadConversations(prop.selectedProjectId);
     }
     //open menu
     function openInvMenu(e: MouseEvent, type: "file" | "project" | "conversation" | "investigation") {
@@ -277,14 +279,14 @@ export function ProjectBar(prop: pbProps
 
                                                     await prop.loadConversations(project.id);
                                                     setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
-                                                    setSelectedProjectId(project.id);
+                                                    prop.setSelectedProjectId(project.id);
                                                     prop.setSelectedProject(project);
 
 
                                                 }}>
                                                     {/*isProjOpen ? "📂" : "📁"*/}
                                                     <span style={{ fontSize: 20, color: "#03045e" }}>{isProjOpen ? "◇" : "◆"}</span>
-                                                    {selectedProjectId === project.id && menuState === "project" && isRename ?
+                                                    {prop.selectedProjectId === project.id && menuState === "project" && isRename ?
                                                         <TextField
                                                             size="small"
                                                             value={newName}
@@ -310,7 +312,7 @@ export function ProjectBar(prop: pbProps
                                                     <IconButton
                                                         className="row-menu"
                                                         size="small"
-                                                        onClick={(e) => { openInvMenu(e, "project"); setSelectedProjectId(project.id); setNewName(project.name); }}
+                                                        onClick={(e) => { openInvMenu(e, "project"); prop.setSelectedProjectId(project.id); setNewName(project.name); }}
                                                         sx={{
                                                             p: 0,
                                                             width: 20,
@@ -369,7 +371,7 @@ export function ProjectBar(prop: pbProps
                                                                         <IconButton
                                                                             className="row-menu"
                                                                             size="small"
-                                                                            onClick={(e) => { openInvMenu(e, "conversation"); setSelectedProjectId(project.id); setSelectedInvId(inv.id); setNewName(conv.title) }}
+                                                                            onClick={(e) => { openInvMenu(e, "conversation"); prop.setSelectedProjectId(project.id); setSelectedInvId(inv.id); setNewName(conv.title) }}
                                                                             sx={{
                                                                                 p: 0,
                                                                                 width: 20,
