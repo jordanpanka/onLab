@@ -123,4 +123,23 @@ public class ProjectService
         return ServiceResult.Success();
     }
 
+    public async Task<ServiceResult> RenameInvestigationAsync(RenameData data)
+    {
+        var exist=await codeDbContext.Investigations.SingleOrDefaultAsync(x=>x.ID==data.id);
+        if(exist==null) return ServiceResult.Fail("Investigation doesn't exist");
+
+        exist.Name=data.name;
+        await codeDbContext.SaveChangesAsync();
+        return ServiceResult.Success();
+
+    }
+    public async Task<ServiceResult> RenameProjectAsync(RenameData data)
+    {
+        var exist=await codeDbContext.Projects.SingleOrDefaultAsync(x=>x.ID==data.id);
+        if(exist==null) return ServiceResult.Fail("Project doesn't exist");
+
+        exist.Name=data.name;
+        await codeDbContext.SaveChangesAsync();
+        return ServiceResult.Success();
+    }
 }

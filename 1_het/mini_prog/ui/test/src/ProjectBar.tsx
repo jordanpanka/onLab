@@ -26,12 +26,12 @@ type pbProps = {
     setSelectedProject: Dispatch<StateUpdater<Project | undefined>>,
     shoWindowFile: boolean,
     setShowWindowFile: (b: boolean) => void,
-    conversatuionsByProjId:Record<number, Conversation[]>,
-    loadConversations:(s:number)=>void,
-    newConv:boolean,
-    setNewConv:(b:boolean)=>void,
-    selectedConversationId:number,
-    setSelectedConversationId:(n:number)=>void
+    conversatuionsByProjId: Record<number, Conversation[]>,
+    loadConversations: (s: number) => void,
+    newConv: boolean,
+    setNewConv: (b: boolean) => void,
+    selectedConversationId: number,
+    setSelectedConversationId: (n: number) => void
 
 }
 const openwidth = 240;
@@ -52,7 +52,15 @@ export function ProjectBar(prop: pbProps
     const [showInvWindow, setShowInvwindow] = useState(false);
     const [showProjWindow, setShowProjwindow] = useState(false);
     const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-    const [menuState, setMenuState] = useState<"file" | "project" |"investigation"|"conversation"| null>(null);
+    const [menuState, setMenuState] = useState<"file" | "project" | "investigation" | "conversation" | null>(null);
+    //renaming variables
+    const [isRename, setIsRename] = useState(false);
+
+    const [renameInvId, setRenameInvId] = useState(-1);
+
+    //renaming names
+    const [newName, setNewName] = useState("");
+
 
     async function addFile() {
         prop.setShowWindowFile(true);
@@ -108,7 +116,7 @@ export function ProjectBar(prop: pbProps
     }
     async function deleteProject() {
         const token = localStorage.getItem("token");
-        const id= selectedProjectId;
+        const id = selectedProjectId;
         const response = await fetch("api/investigations/projects/delete", {
             method: "Post",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
@@ -116,18 +124,49 @@ export function ProjectBar(prop: pbProps
         })
         await loadProjects(selectedInvId);
     }
-    async function deleteConversation(){
-        const token=localStorage.getItem("token");
-        const response=await fetch("api/chat/conversations/delete",{
-            method:"POST",
+    async function deleteConversation() {
+        const token = localStorage.getItem("token");
+        const response = await fetch("api/chat/conversations/delete", {
+            method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({id:prop.selectedConversationId})
+            body: JSON.stringify({ id: prop.selectedConversationId })
         })
         await prop.loadConversations(selectedProjectId);
 
     }
+    async function rename() {
+        setIsRename(true);
+    }
+
+    async function saveNewInvestName() {
+        const token = localStorage.getItem("token");
+        const response = await fetch("api/investigations/rename", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ id: selectedInvId, name: newName })
+        })
+        await loadInvestigations();
+    }
+    async function saveNewProjName() {
+        const token = localStorage.getItem("token");
+        const response = await fetch("api/investigations/projects/rename", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ id: selectedProjectId, name: newName })
+        })
+        await loadProjects(selectedInvId);
+    }
+    async function saveNewConvName() {
+        const token = localStorage.getItem("token");
+        const response = await fetch("api/chat/conversations/rename", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
+            body: JSON.stringify({ id: prop.selectedConversationId, name: newName })
+        })
+        await prop.loadConversations(selectedProjectId);
+    }
     //open menu
-    function openInvMenu(e: MouseEvent, type: "file" | "project" | "conversation" |"investigation") {
+    function openInvMenu(e: MouseEvent, type: "file" | "project" | "conversation" | "investigation") {
         e.stopPropagation();
         setAnchor(e.currentTarget as HTMLElement);
         setMenuState(type);
@@ -180,15 +219,39 @@ export function ProjectBar(prop: pbProps
                                 }
                             }} onClick={async () => {
                                 await loadProjects(inv.id);
+                                //setNewName(inv.name);
                                 setInvOpen(s => ({ ...s, [inv.id]: !s[inv.id] }));
                                 setSelectedInvId(inv.id);
+
+
                             }}>
 
                                 <span style={{ fontFamily: "monospace", fontSize: 16 }}>{isInvOpen ? "><" : "<>"}</span>
-                                <ListItemText primary={inv.name}></ListItemText>
+                                {selectedInvId === inv.id && menuState === "investigation" && isRename ?
+                                    <TextField
+                                        size="small"
+                                        value={newName}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => setNewName(e.currentTarget.value)}
+                                        onBlur={() => saveNewInvestName()}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                               /* await*/ saveNewInvestName()
+                                                setIsRename(false)
+                                            }
+                                            if (e.key === "Escape") {
+                                                setIsRename(false)
+                                            }
+                                        }
+                                        }
+                                    ></TextField> :
+                                    <ListItemText primary={inv.name}></ListItemText>
+
+                                }
+
                                 <IconButton className="row-menu"
                                     size="small"
-                                    onClick={(e) => { openInvMenu(e, "investigation"); setSelectedInvId(inv.id); }}
+                                    onClick={(e) => { openInvMenu(e, "investigation"); setSelectedInvId(inv.id); setNewName(inv.name); }}
                                     sx={{
                                         p: 0.5,
                                         opacity: 0,
@@ -205,30 +268,49 @@ export function ProjectBar(prop: pbProps
                                         return (
                                             <div key={project.id}>
                                                 <ListItemButton sx={{
-                                                    pl: 4, gap: 1, py: 0, mt:0.8, mb:0.8,
+                                                    pl: 4, gap: 1, py: 0, mt: 0.8, mb: 0.8,
                                                     borderRadius: 1,
                                                     "&:hover .row-menu": {
                                                         opacity: 1
                                                     }
                                                 }} onClick={async () => {
-                                                    
-                                                    await prop.loadConversations(project.id); 
+
+                                                    await prop.loadConversations(project.id);
                                                     setProjOpen(s => ({ ...s, [project.id]: !s[project.id] }));
                                                     setSelectedProjectId(project.id);
                                                     prop.setSelectedProject(project);
-                                                    /*if(projOpen[project.id]){
-                                                      await prop.loadConversations(project.id);
-                                                    } */
-                                                   
+
+
                                                 }}>
                                                     {/*isProjOpen ? "📂" : "📁"*/}
-                                                    <span style={{ fontSize: 20, color:"#03045e" }}>{isProjOpen ? "◇" : "◆"}</span>
-                                                    <ListItemText sx={{ my: 0 }} primary={project.name}></ListItemText>
+                                                    <span style={{ fontSize: 20, color: "#03045e" }}>{isProjOpen ? "◇" : "◆"}</span>
+                                                    {selectedProjectId === project.id && menuState === "project" && isRename ?
+                                                        <TextField
+                                                            size="small"
+                                                            value={newName}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onChange={(e) => setNewName(e.currentTarget.value)}
+                                                            onBlur={() => saveNewProjName()}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter") {
+                                                                    /* await*/ saveNewProjName()
+                                                                    setIsRename(false)
+                                                                }
+                                                                if (e.key === "Escape") {
+                                                                    setIsRename(false)
+                                                                }
+                                                            }
+                                                            }
+                                                        ></TextField> :
+                                                        <ListItemText sx={{ my: 0 }} primary={project.name}></ListItemText>
+
+                                                    }
+
 
                                                     <IconButton
                                                         className="row-menu"
                                                         size="small"
-                                                        onClick={(e) => { openInvMenu(e, "project"); setSelectedProjectId(project.id); }}
+                                                        onClick={(e) => { openInvMenu(e, "project"); setSelectedProjectId(project.id); setNewName(project.name); }}
                                                         sx={{
                                                             p: 0,
                                                             width: 20,
@@ -254,19 +336,40 @@ export function ProjectBar(prop: pbProps
                                                                             opacity: 1
                                                                         }
                                                                     }} onClick={async () => {
-                                                                        
+
                                                                         //setConvOpen(s => ({ ...s, [conv.id]: !s[conv.id] }));
                                                                         prop.setSelectedConversationId(conv.id);
-                                    
+
                                                                     }}>
+
+                                                                        <span>💬</span>
+                                                                        {prop.selectedConversationId === conv.id && menuState === "conversation" && isRename ?
+                                                                            <TextField
+                                                                                size="small"
+                                                                                value={newName}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                onChange={(e) => setNewName(e.currentTarget.value)}
+                                                                                onBlur={() => saveNewConvName()}
+                                                                                onKeyDown={(e) => {
+                                                                                    if (e.key === "Enter") {
+                                                                            /* await*/  saveNewConvName()
+                                                                                        setIsRename(false)
+                                                                                    }
+                                                                                    if (e.key === "Escape") {
+                                                                                        setIsRename(false)
+                                                                                    }
+                                                                                }
+                                                                                }
+                                                                            ></TextField> :
+                                                                            <ListItemText sx={{ my: 0 }} primary={conv.title}></ListItemText>
+                                                                        }
+
                                                                        
-                                                                       <span>💬</span>
-                                                                        <ListItemText sx={{ my: 0 }} primary={conv.title}></ListItemText>
 
                                                                         <IconButton
                                                                             className="row-menu"
                                                                             size="small"
-                                                                            onClick={(e) => { openInvMenu(e, "conversation"); setSelectedProjectId(project.id);setSelectedInvId(inv.id); }}
+                                                                            onClick={(e) => { openInvMenu(e, "conversation"); setSelectedProjectId(project.id); setSelectedInvId(inv.id); setNewName(conv.title) }}
                                                                             sx={{
                                                                                 p: 0,
                                                                                 width: 20,
@@ -282,7 +385,7 @@ export function ProjectBar(prop: pbProps
                                                                 </div>);
 
 
-                                                            }
+                                                        }
                                                         )
 
                                                         }
@@ -300,7 +403,19 @@ export function ProjectBar(prop: pbProps
                 })}
             </List>
         </Drawer >
-        <RowMenu type={menuState} anchor={anchor} setAnchor={setAnchor} addFile={addFile} addProj={addProject} deleteInv={deleteInvestigation} deleteProj={deleteProject} addConversation={addConv} deleteConv={deleteConversation}></RowMenu>
+        <RowMenu
+            type={menuState}
+            anchor={anchor}
+            setAnchor={setAnchor}
+            addFile={addFile}
+            addProj={addProject}
+            deleteInv={deleteInvestigation}
+            deleteProj={deleteProject}
+            addConversation={addConv}
+            deleteConv={deleteConversation}
+            rename={rename}
+
+        ></RowMenu>
         {showInvWindow &&
             <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations} loadProjects={loadProjects}></NewProject>
         }

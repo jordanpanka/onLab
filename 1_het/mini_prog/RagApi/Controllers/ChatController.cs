@@ -52,6 +52,17 @@ public class ChatController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("conversations/rename")]
+    public async Task<IActionResult> RenameConversation([FromBody] RenameData data)
+    {
+        var uidClaim = User.FindFirst("uid")?.Value;
+        if (uidClaim == null) return Unauthorized();
+
+        var result=await chatService.RenameConversationAsync(data);
+        if(!result.Ok) return BadRequest(result.Error);
+        return Ok();
+    }
+    [Authorize]
     [HttpPost("conversations/messages/add")]
 
     public async Task<IActionResult> AddMessage([FromBody] MessageData data)

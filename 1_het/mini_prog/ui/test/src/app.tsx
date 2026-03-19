@@ -30,6 +30,7 @@ export function App() {
   const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
   const [selectedProject, setSelectedProject] = useState<Project>();
   const [selectedConversationId,setSelectedConversationId]=useState<number>(-1);
+  const [selectedProjectId,setSelectedProjectId]=useState<number>(-1);
   const { route } = useLocation();
 
   const [isnewConversation, setIsNewConversation] = useState(false)
@@ -172,18 +173,18 @@ export function App() {
           
         }}
       >
-        {selectedProject && selectedConversationId!=-1 && (
+        {selectedProjectId!=-1 && (
           <ChatWindow
             newChat={isnewConversation}
             setNewChat={setIsNewConversation}
-            sellectedProjId={selectedProject.id}
+            sellectedProjId={selectedProjectId}
             selectedCOnversationId={selectedConversationId}
             setSelectedConversationId={setSelectedConversationId}
           />
         )}
       </Box>
 
-      {selectedProject && (
+      {selectedProject && selectedProjectId!=-1 && (
         <RightPanel
           projectSelected={selectedProject}
           projOpen={projOpen}

@@ -5,14 +5,12 @@ type rmProps = {
     setAnchor: (a: HTMLElement | null) => void,
     addFile: () => void,
     addProj: () => void,
-    type: "project" | "file" | "conversation" |"investigation" | null
-    /*rename:()=>void,*/
+    type: "project" | "file" | "conversation" |"investigation" | null,
     deleteInv: () => void,
     deleteProj: () => void,
     deleteConv: () => void,
+    rename:()=>void,
     addConversation: () => void
-
-
 }
 export function RowMenu(prop: rmProps) {
     async function handleAddClick() {
@@ -29,15 +27,15 @@ export function RowMenu(prop: rmProps) {
         switch (prop.type) {
             case "investigation":
 
-                prop.deleteInv();
+                await prop.deleteInv();
                 return;
             case "project":
 
-                prop.deleteProj();
+                await prop.deleteProj();
                 return;
 
             case "conversation":
-                prop.deleteConv();
+                await prop.deleteConv();
                 return;
 
         }
@@ -64,7 +62,7 @@ export function RowMenu(prop: rmProps) {
         <Menu anchorEl={prop.anchor} open={!!prop.anchor} onClose={() => prop.setAnchor(null)}>
             {prop.type == "project" && <MenuItem onClick={prop.addConversation}>Add new conversation</MenuItem>}
             <MenuItem onClick={()=>run(handleAddClick)}>{getNewLabel()}</MenuItem>
-            <MenuItem>Rename</MenuItem>
+            <MenuItem onClick={()=>run(prop.rename)}>Rename</MenuItem>
             <MenuItem onClick={()=>run(deleteClick)}>Delete</MenuItem>
         </Menu>
     );

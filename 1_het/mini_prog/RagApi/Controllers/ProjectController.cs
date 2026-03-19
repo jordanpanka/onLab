@@ -97,6 +97,32 @@ public class ProjectController : ControllerBase
         if(!response.Ok) return BadRequest(response.Error);
         return Ok();
     }
+
+    [Authorize]
+    [HttpPost("rename")]
+    public async Task<IActionResult> RenameInvestigation([FromBody] RenameData data){
+
+        var uidClaim=User.FindFirst("uid");
+        if(uidClaim==null) return Unauthorized("Missing uid claim");
+
+        var response=await projectService.RenameInvestigationAsync(data);
+        if(!response.Ok)return BadRequest(response.Error);
+        return Ok();
+    }
+
+    [Authorize]
+    [HttpPost("projects/rename")]
+    public async Task<IActionResult> RenameProject([FromBody] RenameData data)
+    {
+        var uidClaim=User.FindFirst("uid");
+        if(uidClaim==null) return Unauthorized("Missing uid claim");
+
+        var response=await projectService.RenameProjectAsync(data);
+        if(!response.Ok) return BadRequest(response.Error);
+        return Ok();
+
+    }
+    
 }
 public record FilesData(int id, int projectId);
 public record ProjectData(int invid, string name, string description);
@@ -104,3 +130,5 @@ public record InvestigationData(string name, string description);
 public record UserID(int id);
 public record InvestigationID(int id);
 public record ProjectID(int id);
+
+public record RenameData(int id, string name);
