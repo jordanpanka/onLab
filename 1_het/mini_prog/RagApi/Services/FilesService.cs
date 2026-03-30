@@ -163,7 +163,7 @@ public class FileService
            .Select(x => x.GetSingle())
            .ToArray();
     }
-    public async Task<ServiceResult> UploadQdrantAsync(List<IFormFile> files)
+    public async Task<ServiceResult> UploadQdrantAsync(int userId,List<IFormFile> files, Ids data)
     {
         foreach (var document in files)
         {
@@ -209,6 +209,9 @@ public class FileService
                     vector = point,
                     payload = new
                     {
+                        userId=userId,
+                        investigationId=data.invId,
+                        projectId=data.projectId,
                         docName = document.Name,
                         chunkText = i,
                         text = chunk[i]

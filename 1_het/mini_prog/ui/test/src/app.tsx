@@ -31,6 +31,7 @@ export function App() {
   const [selectedProject, setSelectedProject] = useState<Project>();
   const [selectedConversationId,setSelectedConversationId]=useState<number>(-1);
   const [selectedProjectId,setSelectedProjectId]=useState<number>(-1);
+  const [selectedInvestigationId,setSelectedInvestigationId]=useState<number>(-1);
   const { route } = useLocation();
 
   const [isnewConversation, setIsNewConversation] = useState(false)
@@ -160,6 +161,8 @@ export function App() {
         setNewConv={setIsNewConversation}
         selectedConversationId={selectedConversationId}
         setSelectedConversationId={setSelectedConversationId}
+        selectedInvId={selectedInvestigationId}
+        setSelectedInvId={setSelectedInvestigationId}
       />
 
       <Box
@@ -187,6 +190,7 @@ export function App() {
 
       {selectedProject && selectedProjectId!=-1 && (
         <RightPanel
+          selectedInvId={selectedInvestigationId}
           projectSelected={selectedProject}
           projOpen={projOpen}
           setProjOpen={setProjOpen}

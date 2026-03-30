@@ -70,7 +70,7 @@ export function Login() {
             </>}
             <input type="email" value={email} placeholder="Email address" onInput={e => setEmail(e.currentTarget.value)}></input>
             <input type="password" value={password} placeholder="Password" onInput={e => setPassword(e.currentTarget.value)}></input>
-            <button className="login-btn" onClick={onClick}>{register ? "Register" : "Login"}</button>
+            <button className="login-btn" onClick={onClick} >{register ? "Register" : "Login"}</button>
             {!register && <p>Have no account yet? <a href="" onClick={(e) => { e.preventDefault(); setRegister(true); }}>Register</a></p>}
 
         </div>

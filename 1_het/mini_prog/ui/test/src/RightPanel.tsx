@@ -9,6 +9,7 @@ const openWidth = 240;
 const closedWidth = 60;
 const HEADER_H = 64;
 type RightPanelProps = {
+    selectedInvId:number,
     projectSelected: Project,
     projOpen: Record<number, boolean>,
     setProjOpen: React.Dispatch<React.SetStateAction<Record<number, boolean>>>
@@ -53,6 +54,9 @@ export function RightPanel(rpProps: RightPanelProps) {
             data.append("files", f);
             data.append("paths", f.webkitRelativePath);
         }
+        data.append("idData.invId",String(rpProps.selectedInvId));
+        data.append("idData.projectId",String(rpProps.projectSelected.id))
+        
         const token = localStorage.getItem("token");
         const response = await fetch("/api/investigations/projects/files/upload", {
             method: "POST",

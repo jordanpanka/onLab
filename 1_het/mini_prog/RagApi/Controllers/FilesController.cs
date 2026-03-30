@@ -11,25 +11,32 @@ using UglyToad.PdfPig.Graphics.Colors;
 public class FilesController : ControllerBase
 {
     private readonly FileService filesService;
+     private readonly MinioService minioService;
 
-    public FilesController(FileService fs)
+    public FilesController(FileService fs, MinioService ms)
     {
         filesService=fs;
+        minioService=ms;
     }
     [Authorize]
     [HttpPost("upload")]
-    public async Task<IActionResult> UploadFile([FromForm] int projectId, [FromForm] List<IFormFile> files,
-    [FromForm] List<string> paths)
+    public async Task<IActionResult> UploadFile( [FromForm] List<IFormFile> files,
+    [FromForm] List<string> paths,[FromForm] Ids idData)
     {   
         var uidClaim = User.FindFirst("uid")?.Value;
         if (uidClaim == null) return Unauthorized();
 
-        var response=await filesService.UploadAsync(projectId,files,paths);
+        var response=await filesService.UploadAsync(idData.projectId,files,paths);
         if(!response.Ok) return BadRequest();
 
-        var result=await filesService.UploadQdrantAsync(files);
+        //response??? minden ok?
+        await minioService.UploadAsync(int.Parse(uidClaim),files,idData);
+
+        var result=await filesService.UploadQdrantAsync(int.Parse(uidClaim),files,idData);
         if(!result.Ok) return BadRequest();
         return Ok();
         
     }
+
 }
+public record Ids( int invId, int projectId); 

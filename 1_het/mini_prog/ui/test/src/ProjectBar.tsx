@@ -1,4 +1,4 @@
-import { Box, Collapse, IconButton, InputAdornment, List, ListItemButton, ListItemText, TextField, Typography } from "@mui/material";
+import { Box, Collapse, IconButton, InputAdornment, List, ListItemButton, ListItemText, TextField, Tooltip, Typography } from "@mui/material";
 import Drawer from "@mui/material/Drawer";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
 import DiamondIcon from "@mui/icons-material/Diamond";
@@ -24,8 +24,8 @@ export type Investigation = {
 }
 type pbProps = {
     setSelectedProject: Dispatch<StateUpdater<Project | undefined>>,
-    selectedProjectId:number,
-    setSelectedProjectId:(n:number)=>void,
+    selectedProjectId: number,
+    setSelectedProjectId: (n: number) => void,
     shoWindowFile: boolean,
     setShowWindowFile: (b: boolean) => void,
     conversatuionsByProjId: Record<number, Conversation[]>,
@@ -33,7 +33,9 @@ type pbProps = {
     newConv: boolean,
     setNewConv: (b: boolean) => void,
     selectedConversationId: number,
-    setSelectedConversationId: (n: number) => void
+    setSelectedConversationId: (n: number) => void,
+    selectedInvId: number,
+    setSelectedInvId: (n: number) => void
 
 }
 const openwidth = 240;
@@ -46,7 +48,7 @@ export function ProjectBar(prop: pbProps
     const [investigations, setInvestigations] = useState<Investigation[]>([]);
 
     //const [selectedConversationId, setSelectedConversationId]=useState<number>(-1);
-    const [selectedInvId, setSelectedInvId] = useState<number>(-1);
+    //const [selectedInvId, setSelectedInvId] = useState<number>(-1);
     //const [selectedProjectId, setSelectedProjectId] = useState<number>(-1);
     const [invOpen, setInvOpen] = useState<Record<number, boolean>>({});
     const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
@@ -110,7 +112,7 @@ export function ProjectBar(prop: pbProps
         const response = await fetch("api/investigations/delete", {
             method: "Post",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ id: selectedInvId })
+            body: JSON.stringify({ id: prop.selectedInvId })
         })
         await loadInvestigations();
         setAnchor(null);
@@ -124,7 +126,7 @@ export function ProjectBar(prop: pbProps
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ id })
         })
-        await loadProjects(selectedInvId);
+        await loadProjects(prop.selectedInvId);
     }
     async function deleteConversation() {
         const token = localStorage.getItem("token");
@@ -139,13 +141,12 @@ export function ProjectBar(prop: pbProps
     async function rename() {
         setIsRename(true);
     }
-
     async function saveNewInvestName() {
         const token = localStorage.getItem("token");
         const response = await fetch("api/investigations/rename", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
-            body: JSON.stringify({ id: selectedInvId, name: newName })
+            body: JSON.stringify({ id: prop.selectedInvId, name: newName })
         })
         await loadInvestigations();
     }
@@ -156,7 +157,7 @@ export function ProjectBar(prop: pbProps
             headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token },
             body: JSON.stringify({ id: prop.selectedProjectId, name: newName })
         })
-        await loadProjects(selectedInvId);
+        await loadProjects(prop.selectedInvId);
     }
     async function saveNewConvName() {
         const token = localStorage.getItem("token");
@@ -208,60 +209,60 @@ export function ProjectBar(prop: pbProps
                     console.log(inv);
                     return (
                         <div key={inv.id}>
+                            <Tooltip title="Projekt megnyitása" arrow>
+                                <ListItemButton sx={{
+                                    gap: 1,
+                                    borderRadius: 1,
+                                    mx: 0.5,
+                                    "&:hover": {
+                                        backgroundColor: "#f5f5f5"
+                                    },
+                                    "&:hover .row-menu": {
+                                        opacity: 1
+                                    }
+                                }} onClick={async () => {
+                                    await loadProjects(inv.id);
+                                    //setNewName(inv.name);
+                                    setInvOpen(s => ({ ...s, [inv.id]: !s[inv.id] }));
+                                    prop.setSelectedInvId(inv.id);
 
-                            <ListItemButton sx={{
-                                gap: 1,
-                                borderRadius: 1,
-                                mx: 0.5,
-                                "&:hover": {
-                                    backgroundColor: "#f5f5f5"
-                                },
-                                "&:hover .row-menu": {
-                                    opacity: 1
-                                }
-                            }} onClick={async () => {
-                                await loadProjects(inv.id);
-                                //setNewName(inv.name);
-                                setInvOpen(s => ({ ...s, [inv.id]: !s[inv.id] }));
-                                setSelectedInvId(inv.id);
 
+                                }}>
 
-                            }}>
-
-                                <span style={{ fontFamily: "monospace", fontSize: 16 }}>{isInvOpen ? "><" : "<>"}</span>
-                                {selectedInvId === inv.id && menuState === "investigation" && isRename ?
-                                    <TextField
-                                        size="small"
-                                        value={newName}
-                                        onClick={(e) => e.stopPropagation()}
-                                        onChange={(e) => setNewName(e.currentTarget.value)}
-                                        onBlur={() => saveNewInvestName()}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
+                                    <span style={{ fontFamily: "monospace", fontSize: 16 }}>{isInvOpen ? "><" : "<>"}</span>
+                                    {prop.selectedInvId === inv.id && menuState === "investigation" && isRename ?
+                                        <TextField
+                                            size="small"
+                                            value={newName}
+                                            onClick={(e) => e.stopPropagation()}
+                                            onChange={(e) => setNewName(e.currentTarget.value)}
+                                            onBlur={() => saveNewInvestName()}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
                                                /* await*/ saveNewInvestName()
-                                                setIsRename(false)
+                                                    setIsRename(false)
+                                                }
+                                                if (e.key === "Escape") {
+                                                    setIsRename(false)
+                                                }
                                             }
-                                            if (e.key === "Escape") {
-                                                setIsRename(false)
                                             }
-                                        }
-                                        }
-                                    ></TextField> :
-                                    <ListItemText primary={inv.name}></ListItemText>
+                                        ></TextField> :
+                                        <ListItemText primary={inv.name}></ListItemText>
 
-                                }
+                                    }
 
-                                <IconButton className="row-menu"
-                                    size="small"
-                                    onClick={(e) => { openInvMenu(e, "investigation"); setSelectedInvId(inv.id); setNewName(inv.name); }}
-                                    sx={{
-                                        p: 0.5,
-                                        opacity: 0,
-                                        transition: "opacity 0.15s ease"
-                                    }}><MoreHorizIcon /></IconButton>
+                                    <IconButton className="row-menu"
+                                        size="small"
+                                        onClick={(e) => { openInvMenu(e, "investigation"); prop.setSelectedInvId(inv.id); setNewName(inv.name); }}
+                                        sx={{
+                                            p: 0.5,
+                                            opacity: 0,
+                                            transition: "opacity 0.15s ease"
+                                        }}><MoreHorizIcon /></IconButton>
 
-                            </ListItemButton>
-
+                                </ListItemButton>
+                            </Tooltip>
 
                             <Collapse in={isInvOpen} timeout="auto" unmountOnExit>
                                 <List disablePadding dense>
@@ -312,7 +313,7 @@ export function ProjectBar(prop: pbProps
                                                     <IconButton
                                                         className="row-menu"
                                                         size="small"
-                                                        onClick={(e) => { openInvMenu(e, "project"); prop.setSelectedProjectId(project.id); setNewName(project.name); }}
+                                                        onClick={(e) => { openInvMenu(e, "project"); prop.setSelectedProjectId(project.id); setNewName(project.name); prop.setSelectedProject(project); }}
                                                         sx={{
                                                             p: 0,
                                                             width: 20,
@@ -366,12 +367,12 @@ export function ProjectBar(prop: pbProps
                                                                             <ListItemText sx={{ my: 0 }} primary={conv.title}></ListItemText>
                                                                         }
 
-                                                                       
+
 
                                                                         <IconButton
                                                                             className="row-menu"
                                                                             size="small"
-                                                                            onClick={(e) => { openInvMenu(e, "conversation"); prop.setSelectedProjectId(project.id); setSelectedInvId(inv.id); setNewName(conv.title) }}
+                                                                            onClick={(e) => { openInvMenu(e, "conversation"); prop.setSelectedProjectId(project.id); prop.setSelectedInvId(inv.id); setNewName(conv.title) }}
                                                                             sx={{
                                                                                 p: 0,
                                                                                 width: 20,
@@ -422,7 +423,7 @@ export function ProjectBar(prop: pbProps
             <NewProject isInv={true} open={showInvWindow} setOpen={setShowInvwindow} loadInvestigations={loadInvestigations} loadProjects={loadProjects}></NewProject>
         }
         {showProjWindow &&
-            <NewProject isInv={false} invId={selectedInvId} open={showProjWindow} setOpen={setShowProjwindow} loadInvestigations={loadInvestigations} loadProjects={loadProjects}></NewProject>
+            <NewProject isInv={false} invId={prop.selectedInvId} open={showProjWindow} setOpen={setShowProjwindow} loadInvestigations={loadInvestigations} loadProjects={loadProjects}></NewProject>
         }
     </>)
 

@@ -18,7 +18,7 @@ export function RowMenu(prop: rmProps) {
             case "investigation":
                 prop.addProj();
                 return;
-            case "file":
+            case "project":
                 prop.addFile();
                 return;
         }

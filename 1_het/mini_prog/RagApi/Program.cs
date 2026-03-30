@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using Microsoft.Extensions.Configuration;
 using System.Threading.Tasks;
+using Minio;
 
 var builder = WebApplication.CreateBuilder(args);
 IdentityModelEventSource.ShowPII = true;
@@ -87,6 +88,12 @@ builder.Services
             }
       };
   });
+builder.Services.AddSingleton<IMinioClient>(sp =>
+    new MinioClient()
+        .WithEndpoint("localhost:9000")
+        .WithCredentials("minioadmin", "minioadmin")
+        .Build()
+);
 builder.Services.AddAuthorization();
 //add services
 builder.Services.AddScoped<AuthService>();
@@ -94,6 +101,7 @@ builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<FileService>();
 builder.Services.AddScoped<ChatService>();
+
 
 //controllers
 builder.Services.AddControllers();

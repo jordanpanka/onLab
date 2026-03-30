@@ -2,9 +2,8 @@ import { Box, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/mat
 import type { Dispatch } from "preact/hooks";
 
 type UploadFileProps = {
-    setFile: Dispatch<FileList>;
-    link: () => Promise<void>;
-    /*answer: string;*/
+    setFile: Dispatch<FileList>,
+    link: () => Promise<void>,
     open: boolean,
     setOpen: (b: boolean) => void
 };
