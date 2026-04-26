@@ -130,7 +130,7 @@ public class ChatService
            .Select(x => x.GetSingle())
            .ToArray();
     }
-    public async Task<ServiceResult> SendMessageAsync(ChatRequest prompt)
+   /* public async Task<ServiceResult> SendMessageAsync(ChatRequest prompt)
     {
         Console.WriteLine(configuration["AI:EmbedModel"]);
         Console.WriteLine(configuration["AI:OllamaUrl"]);
@@ -209,8 +209,37 @@ public class ChatService
             return ServiceResult.Fail(e.Message);
         }
 
-    }
+    }*/
+   public async Task<ServiceResult> SendMessageAsync(ChatRequest prompt)
+{
+    try
+    {
+        httpClient.Timeout = TimeSpan.FromMinutes(5);
+        var pythonUrl = $"{configuration["AI:PythonUrl"]}/api/chat/files/send";
 
+        var response = await httpClient.PostAsJsonAsync(pythonUrl, prompt);
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return ServiceResult.Fail($"Python error: {responseBody}");
+        }
+
+        // JSON parse
+        var json = JsonDocument.Parse(responseBody);
+
+        var answer = json.RootElement
+                        .GetProperty("data")
+                        .GetProperty("answer")
+                        .GetString() ?? "";
+        return ServiceResult.Success(new { answer });
+    }
+    catch (Exception ex)
+    {
+        return ServiceResult.Fail($"Chat failed: {ex.Message}");
+    }
+}
 }
 
 

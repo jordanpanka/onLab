@@ -11,15 +11,15 @@ public class MinioService
         _minio = minio;
     }
 
-    public async Task UploadAsync(int userId,List<IFormFile> files, Ids data)
+    public async Task UploadAsync(int userId,List<IFormFile> files,List<string> paths,int projectId, int invId)
     {
-        foreach(var f in files)
+        for(int i = 0; i<files.Count; i++)
         {
-            // egyedi név
-            var fileName = $"{Guid.NewGuid()}_{f.FileName}";
+            var f=files[i];
+            var path=paths[i];
 
             var objectName =
-                $"users/{userId}/investigations/{data.invId}/projects/{data.projectId}/original/{fileName}";
+                $"users/{userId}/investigations/{invId}/projects/{projectId}/original/{path}";
 
             using var stream = f.OpenReadStream();
 

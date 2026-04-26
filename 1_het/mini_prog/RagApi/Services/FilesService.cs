@@ -11,7 +11,7 @@ using ef;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using UglyToad.PdfPig;
-
+using System.Net.Http.Headers;
 public class FileService
 {
     private readonly CodeDbContext codeDbContext;
@@ -228,4 +228,56 @@ public class FileService
         }
         return ServiceResult.Success();
     }
+    
+
+public async Task<ServiceResult> UploadQdrantPythonAsync(int userId, List<IFormFile> files,List<string> paths, int projectId, int invId)
+{
+    try
+    {
+       
+        httpClient.Timeout = TimeSpan.FromMinutes(10);
+
+        using var content = new MultipartFormDataContent();
+
+        content.Add(new StringContent(userId.ToString()), "user_id");
+        content.Add(new StringContent(invId.ToString()), "inv_id");
+        content.Add(new StringContent(projectId.ToString()), "project_id");
+
+        foreach (var file in files)
+        {
+            if (file == null || file.Length == 0)
+                return ServiceResult.Fail("File is empty");
+
+            var stream = file.OpenReadStream();
+            var fileContent = new StreamContent(stream);
+
+            if (!string.IsNullOrWhiteSpace(file.ContentType))
+            {
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+            }
+
+            content.Add(fileContent, "files", file.FileName);
+        }
+        foreach (var path in paths)
+        {
+            content.Add(new StringContent(path), "paths");
+        }
+
+        var pythonUrl = $"{configuration["AI:PythonUrl"]}/api/chat/files/upload";
+
+        var response = await httpClient.PostAsync(pythonUrl, content);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return ServiceResult.Fail($"Python service error: {responseBody}");
+        }
+
+        return ServiceResult.Success(responseBody);
+    }
+    catch (Exception ex)
+    {
+        return ServiceResult.Fail($"Python upload failed: {ex.Message}");
+    }
+}
 }

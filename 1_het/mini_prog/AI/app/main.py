@@ -1,22 +1,12 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from app.routers import chat_router
+from app.routers import file_router
 
-app = FastAPI(title="Python Service")
-
-class TextRequest(BaseModel):
-    text: str
-
-@app.get("/")
-def root():
-    return {"message": "Python service is running"}
+app = FastAPI(title="AI Service")
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-@app.post("/chunk")
-def chunk_text(request: TextRequest):
-    words = request.text.split()
-    return {
-        "chunks": [" ".join(words[i:i+5]) for i in range(0, len(words), 5)]
-    }
+app.include_router(chat_router.router)
+app.include_router(file_router.router)

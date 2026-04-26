@@ -91,7 +91,7 @@ builder.Services
 builder.Services.AddSingleton<IMinioClient>(sp =>
     new MinioClient()
         .WithEndpoint("localhost:9000")
-        .WithCredentials("minioadmin", "minioadmin")
+        .WithCredentials("miniorag", "miniorag")
         .Build()
 );
 builder.Services.AddAuthorization();
@@ -101,6 +101,7 @@ builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<ProjectService>();
 builder.Services.AddScoped<FileService>();
 builder.Services.AddScoped<ChatService>();
+builder.Services.AddScoped<MinioService>();
 
 
 //controllers
@@ -142,12 +143,29 @@ static async Task EnsureCollection(HttpClient http)
     {
         vectors = new
         {
-            size = 768,
-            distance = "Cosine"
+            code = new
+            {
+                size = 768,
+                distance = "Cosine"
+            },
+            summary = new
+            {
+                size = 768,
+                distance = "Cosine"
+            },
+            text = new
+            {
+                size = 768,
+                distance = "Cosine"
+            }
         }
     };
 
-    var create = await http.PutAsJsonAsync($"{Qdrant}/collections/{Collection}", createPayload);
+    var create = await http.PutAsJsonAsync(
+        $"{Qdrant}/collections/{Collection}",
+        createPayload
+    );
+
     create.EnsureSuccessStatusCode();
 }
 app.Lifetime.ApplicationStarted.Register(() =>

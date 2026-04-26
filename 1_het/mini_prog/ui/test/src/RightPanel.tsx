@@ -52,10 +52,11 @@ export function RightPanel(rpProps: RightPanelProps) {
         data.append("projectId", String(rpProps.projectSelected.id));
         for (const f of Array.from(file ?? [])) {
             data.append("files", f);
-            data.append("paths", f.webkitRelativePath);
+            const path = f.webkitRelativePath || f.name;
+            data.append("paths", path);
         }
-        data.append("idData.invId",String(rpProps.selectedInvId));
-        data.append("idData.projectId",String(rpProps.projectSelected.id))
+        data.append("invId",String(rpProps.selectedInvId));
+        data.append("projectId",String(rpProps.projectSelected.id))
         
         const token = localStorage.getItem("token");
         const response = await fetch("/api/investigations/projects/files/upload", {

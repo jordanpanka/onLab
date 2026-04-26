@@ -96,7 +96,7 @@ public class ChatController : ControllerBase
         if(uidClaim==null) return Unauthorized();
 
         var result=await chatService.SendMessageAsync(prompt);
-        Console.WriteLine("BOLDOGSÁÁÁÁÁÁÁG\n");
+        //Console.WriteLine("BOLDOGSÁÁÁÁÁÁÁG\n");
        // if(!result.Ok) return BadRequest(result.Error);
         if (!result.Ok) return BadRequest(new { error = result.Error });
         return Ok(result.Data);
