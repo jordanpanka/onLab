@@ -68,7 +68,51 @@ public class FileService
         return ServiceResult.Success();
     }
 
+    /*public async Task<ServiceResult> CheckDuplicates(int userId, int investigationId, int projectId, IFormFile file, string path)
+    {
+        var exist=await codeDbContext.Files.FirstOrDefaultAsync(f->f.ProjectID==projectId && paths==f.RelativePath && f.Name==file.FileName);
+        if (exist!=null)
+        {
+            var exist=await codeDbContext.Projects.FirstOrDefaultAsync(f->f.ID==projectId && f.InvestigationID==investigationId);
+            if (exist!=null)
+            {
+                var exist=await codeDbContext.Investigation.FirstOrDefaultAsync(f->f.ID==investigationId && f.UserID==userId);
+                if (exist != null)
+                {
+                    return ServiceResult.Fail("File already exist.")
+                }
+                else
+                {
+                    return ServiceResult.Success();
+                }
+            }
+            else
+            {
+                return ServiceResult.Success();
+            }
+        }
+        else
+        {
+            return ServiceResult.Success();
+        }
+    }*/
+    public async Task<ServiceResult> CheckDuplicates( int userId,int investigationId,int projectId,IFormFile file,string path)
+    {
+        var exists = await codeDbContext.Files.AnyAsync(f =>
+            f.ProjectID == projectId &&
+            f.RelativePath == path &&
+            f.Name == file.FileName &&
+            f.Project.InvestigationID == investigationId &&
+            f.Project.Investigation.UserID == userId
+        );
 
+        if (exists)
+        {
+            return ServiceResult.Fail("File already exists.");
+        }
+
+        return ServiceResult.Success();
+    }
     public async Task<ServiceResult> SaveFileAsZip(int pid, IFormFile file, string path)
     {
         using var archive = new ZipArchive(file.OpenReadStream(), ZipArchiveMode.Read);

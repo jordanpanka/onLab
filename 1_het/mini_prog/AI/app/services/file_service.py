@@ -109,7 +109,15 @@ class FileService:
                                     "userId":user_id,
                                     "investigationId": inv_id,
                                     "projectId": project_id,
-                                    "docName": files[i].filename
+                                    "docName": files[i].filename,
+                                    "path": node.metadata.get("path", paths[i]),
+                                    "kind": node.metadata.get("kind", "code"),
+                                    "name": node.metadata.get("name", ""),
+                                    "code": node.text,
+                                    "summary": node.metadata["summary"],
+                                    "start_line": node.metadata.get("start_line"),
+                                    "end_line": node.metadata.get("end_line"),
+                                    "ts_type": node.metadata.get("ts_type")
                                 }
                                     
                             })
@@ -119,7 +127,7 @@ class FileService:
                     case "documentation":
                         nodes=await self.process_doc_file(files[i],paths[i])
                         for node in nodes:
-                            text_vec=self.embed(http_client,node.text)
+                            text_vec=await self.embed(http_client,node.text)
                             points.append({
                                 "id":str(uuid.uuid4()),
                                 "vector":{
@@ -177,13 +185,20 @@ class FileService:
     async def process_code_file(self,file: UploadFile, path:str)->List[TextNode]:
             c_parser=CodeParser()
             tree, source_code=await c_parser.parse_code_to_tree(file,path)
-            classnodes=c_parser.extract_class_nodes(tree.root_node)
-                    
+            print("AST SYNTAX TREE")
+            c_parser.print_tree(tree.root_node)
+            classnodes, functionnodes=c_parser.extract_class_nodes(tree.root_node)
+            print("CLASS NODES:", len(classnodes))
+            print("FUNCTION NODES:", len(functionnodes))   
+            relations = c_parser.extract_graph_relations(tree, source_code)   
             nodecreator=NodeCreator()
             llamaindexnodes=[]
             for node in classnodes:
-                llamaindexnodes.append(nodecreator.ts_node_to_llamaindex_node(node,source_code,path))
-                    
+                llamaindexnodes.append(nodecreator.ts_node_to_llamaindex_node_class(node,source_code,path))
+            
+            for node in functionnodes:
+                llamaindexnodes.append(nodecreator.ts_node_to_llamaindex_node_function(node, source_code, path))
+                
             for node in llamaindexnodes:
                 summary= await nodecreator.generate_summary_to_node(node)
                 print("Az összefoglaló")
@@ -193,7 +208,7 @@ class FileService:
         
         
     async def process_doc_file(self,file: UploadFile, path:str)->List[TextNode]:
-            text=self.extract_text_from_pdf(file)
+            text=await self.extract_text_from_pdf(file)
             chunks=self.chunk_text(text, 800, 120)
             tsnodes=[]
             for chunk in chunks:

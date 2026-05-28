@@ -12,7 +12,7 @@ class NodeCreator:
                     return source_code[child.start_byte:child.end_byte].decode("utf-8", errors="replace")
             return None
         
-    def ts_node_to_llamaindex_node(self,ts_node,source_code: bytes,  path:str):
+    def ts_node_to_llamaindex_node_class(self,ts_node,source_code: bytes,  path:str):
             code = source_code[ts_node.start_byte:ts_node.end_byte].decode("utf-8", errors="replace")
             class_name = self.get_python_class_name(ts_node, source_code)
             
@@ -29,7 +29,20 @@ class NodeCreator:
                 "ts_type": ts_node.type,
             }
         )
-        
+    def ts_node_to_llamaindex_node_function(self, ts_node, source_code:bytes,  path:str):
+        code = source_code[ts_node.start_byte:ts_node.end_byte].decode("utf-8", errors="replace")
+         
+        return TextNode(
+        text=code,
+        metadata={
+            "path": path,
+            "kind": "function",
+            "start_line": ts_node.start_point[0] + 1,
+            "start_col": ts_node.start_point[1],
+            "end_line": ts_node.end_point[0] + 1,
+            "end_col": ts_node.end_point[1],
+            "ts_type": ts_node.type,
+        })
     async def generate_summary_to_node(self,node)->str:
             code = node.text
             path = node.metadata.get("path", "")
