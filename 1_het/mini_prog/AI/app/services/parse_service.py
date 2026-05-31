@@ -78,7 +78,27 @@ class CodeParser:
             "call": ["call_expression"],
             "import": ["import_statement"]
         }
+    },
+    ".java": {
+        "language": get_language("java"),
+        "name": "java",
+        "node_types": {
+            "class": ["class_declaration"],
+            "function": ["method_declaration"],
+            "call": ["method_invocation"],
+            "import": ["import_declaration"]
+        }
+    },
+    ".jsx": {
+    "language": get_language("javascript"),
+    "name": "javascript",
+    "node_types": {
+        "class": ["class_declaration"],
+        "function": ["function_declaration", "method_definition"],
+        "call": ["call_expression"],
+        "import": ["import_statement"]
     }
+}
 }
     def select_language(self, file_path:str)->str:
         ext = os.path.splitext(file_path)[1]
@@ -107,7 +127,7 @@ class CodeParser:
         elif(node.type in node_types["function"]):
             functions.append(node)
         for child in node.children:
-            child_classes, child_functions = self.extract_class_nodes(child)
+            child_classes, child_functions = self.extract_class_function_nodes(child)
 
             classes.extend(child_classes)
             functions.extend(child_functions)
@@ -177,7 +197,7 @@ class CodeParser:
             class_name = self.get_node_name(class_node, source_code)
 
             for child in class_node.children:
-                child_classes, child_functions = self.extract_class_nodes(child)
+                child_classes, child_functions = self.extract_class_function_nodes(child)
 
                 for fn in child_functions:
                     method_name = self.get_node_name(fn, source_code)
@@ -195,9 +215,9 @@ class CodeParser:
     def extract_graph_relations(self, tree, source_code: bytes) -> dict:
         imports = self.extract_imports(tree.root_node, source_code)
 
-        _, functions = self.extract_class_nodes(tree.root_node)
+        _, functions = self.extract_class_function_nodes(tree.root_node)
 
-        classes, functions = self.extract_class_nodes(tree.root_node)
+        classes, functions = self.extract_class_function_nodes(tree.root_node)
 
         methods = self.extract_methods_in_classes(classes, source_code)
         calls = []
@@ -224,10 +244,4 @@ class CodeParser:
                 "calls": calls,
                 "methods": methods
             }
-    '''      
-    def get_python_class_name(ts_node, source_code: bytes) -> str | None:
-        for child in ts_node.children:
-            if child.type == "identifier":
-                return source_code[child.start_byte:child.end_byte].decode("utf-8", errors="replace")
-        return None
-    '''        
+      

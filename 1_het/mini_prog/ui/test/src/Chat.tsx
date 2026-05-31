@@ -1,4 +1,3 @@
-import { Send } from "@mui/icons-material";
 import SendIcon from "@mui/icons-material/Send";
 import { Box, IconButton, Paper, TextField, Typography } from "@mui/material";
 import { useEffect, useState } from "preact/hooks";
@@ -19,14 +18,15 @@ export type Conversation = {
 type cProps = {
     newChat: boolean,
     setNewChat: (b: boolean) => void,
+    selectedInvId:number,
     sellectedProjId: number,
     selectedCOnversationId: number,
-    setSelectedConversationId: (id: number) => void
+    setSelectedConversationId: (id: number) => void,
+
 }
 export function ChatWindow(prop: cProps) {
     const [conversationsByProjId, setConversationsByProjId] = useState<Record<number, Conversation[]>>({});
     const [messagesByConvId, setMessagesByConvId] = useState<Record<number, Message[]>>({});
-    // const [selectedConversation, setSelectedConversation] = useState<Conversation>();
     const [prompt, setPrompt] = useState("");
     const [answer, setAnswer] = useState("kezdő");
 
@@ -68,7 +68,7 @@ export function ChatWindow(prop: cProps) {
                 "Content-Type": "application/json",
                 "Authorization": "Bearer " + token
             },
-            body: JSON.stringify({ prompt }),
+            body: JSON.stringify({ prompt, investigationId:prop.selectedInvId, projectId: prop.sellectedProjId}),
         });
 
         const data = await r.json();

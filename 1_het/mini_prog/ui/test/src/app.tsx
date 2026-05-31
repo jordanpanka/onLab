@@ -29,9 +29,9 @@ export function App() {
   const [conversationsByProjId, setConversationsByProjId] = useState<Record<number, Conversation[]>>({});
   const [projOpen, setProjOpen] = useState<Record<number, boolean>>({});
   const [selectedProject, setSelectedProject] = useState<Project>();
-  const [selectedConversationId,setSelectedConversationId]=useState<number>(-1);
-  const [selectedProjectId,setSelectedProjectId]=useState<number>(-1);
-  const [selectedInvestigationId,setSelectedInvestigationId]=useState<number>(-1);
+  const [selectedConversationId, setSelectedConversationId] = useState<number>(-1);
+  const [selectedProjectId, setSelectedProjectId] = useState<number>(-1);
+  const [selectedInvestigationId, setSelectedInvestigationId] = useState<number>(-1);
   const { route } = useLocation();
 
   const [isnewConversation, setIsNewConversation] = useState(false)
@@ -89,7 +89,7 @@ export function App() {
     route("/login", true);
   }
   useEffect(() => setName(), []);
-  async function loadConversations(id:number) {
+  async function loadConversations(id: number) {
     const token = localStorage.getItem("token");
     //const id = selectedProject?.id;
     const response = await fetch("api/chat/conversations/load", {
@@ -98,7 +98,7 @@ export function App() {
         "Content-Type": "application/json",
         "Authorization": "Bearer " + token
       },
-      body: JSON.stringify({id})
+      body: JSON.stringify({ id })
     })
     const data = await response.json();
     if (id) {
@@ -108,98 +108,108 @@ export function App() {
       }));
     }
   }
- return (
-  <>
-    <AppBar
-      position="fixed"
-      elevation={0}
-      sx={{
-        backgroundColor: "white",
-        color: "black",
-        borderBottom: "1px solid #eee",
-        zIndex: (theme) => theme.zIndex.drawer + 1,
-      }}
-    >
-      <Toolbar sx={{ height: HEADER_H, backgroundColor: "#03045e" }}>
-        <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 30, color: "white" }}>
-            Mini chat
-          </Typography>
-          <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
-            <Avatar sx={{ width: 32, height: 32 }}>
-              <img src={avatar} alt="Avatar" />
-            </Avatar>
-            <Typography sx={{ color: "white" }}>
-              {lastName} {firstName}
+  return (
+    <>
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{
+          backgroundColor: "white",
+          color: "black",
+          borderBottom: "1px solid #eee",
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+        }}
+      >
+        <Toolbar sx={{ height: HEADER_H, backgroundColor: "#03045e" }}>
+          <Box sx={{ display: 'flex', alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+            <Typography sx={{ fontWeight: 600, fontSize: 30, color: "white" }}>
+              Code Mind
             </Typography>
-            <IconButton onClick={logout}>
-              <LogoutIcon sx={{ color: "white" }} />
-            </IconButton>
+            <Box sx={{ display: 'flex', alignItems: "center", gap: 2 }}>
+              <Avatar
+                sx={{
+                  width: 40,
+                  height: 40,
+                  bgcolor: "#88B8F9",
+                  color: "white",
+                  fontWeight: 700,
+                  fontSize: 20
+                }}
+              >
+                {firstName?.charAt(0).toUpperCase()}
+              </Avatar>
+              <Typography sx={{ color: "white" }}>
+                {lastName} {firstName}
+              </Typography>
+              <IconButton onClick={logout}>
+                <LogoutIcon sx={{ color: "white" }} />
+              </IconButton>
+            </Box>
           </Box>
-        </Box>
-      </Toolbar>
-    </AppBar>
-
-    <Box
-      sx={{
-        display: "flex",
-        height: `calc(100vh - 56px)`,
-        mt: `${HEADER_H}px`,
-        overflow:"hidden",
-        minHeight: 0
-      }}
-    >
-      <ProjectBar
-        setSelectedProject={setSelectedProject}
-        selectedProjectId={selectedProjectId}
-        setSelectedProjectId={setSelectedProjectId}
-        shoWindowFile={showWindowFile}
-        setShowWindowFile={setShowwindowFile}
-        loadConversations={loadConversations}
-        conversatuionsByProjId={conversationsByProjId}
-        newConv={isnewConversation}
-        setNewConv={setIsNewConversation}
-        selectedConversationId={selectedConversationId}
-        setSelectedConversationId={setSelectedConversationId}
-        selectedInvId={selectedInvestigationId}
-        setSelectedInvId={setSelectedInvestigationId}
-      />
+        </Toolbar>
+      </AppBar>
 
       <Box
         sx={{
-          flex: 1,
-          minWidth: 0,
-          minHeight: 0,
           display: "flex",
-          justifyContent: "center",
-          width:"100%",
-          overflow:'hidden'
-          
+          height: `calc(100vh - 56px)`,
+          mt: `${HEADER_H}px`,
+          overflow: "hidden",
+          minHeight: 0
         }}
       >
-        {/*selectedProjectId!=-1 && */(
-          <ChatWindow
-            newChat={isnewConversation}
-            setNewChat={setIsNewConversation}
-            sellectedProjId={selectedProjectId}
-            selectedCOnversationId={selectedConversationId}
-            setSelectedConversationId={setSelectedConversationId}
+        <ProjectBar
+          setSelectedProject={setSelectedProject}
+          selectedProjectId={selectedProjectId}
+          setSelectedProjectId={setSelectedProjectId}
+          shoWindowFile={showWindowFile}
+          setShowWindowFile={setShowwindowFile}
+          loadConversations={loadConversations}
+          conversatuionsByProjId={conversationsByProjId}
+          newConv={isnewConversation}
+          setNewConv={setIsNewConversation}
+          selectedConversationId={selectedConversationId}
+          setSelectedConversationId={setSelectedConversationId}
+          selectedInvId={selectedInvestigationId}
+          setSelectedInvId={setSelectedInvestigationId}
+        />
+
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+            display: "flex",
+            justifyContent: "center",
+            width: "100%",
+            overflow: 'hidden'
+
+          }}
+        >
+          {/*selectedProjectId!=-1 && */(
+            <ChatWindow
+              newChat={isnewConversation}
+              setNewChat={setIsNewConversation}
+              sellectedProjId={selectedProjectId}
+              selectedInvId={selectedInvestigationId}
+              selectedCOnversationId={selectedConversationId}
+              setSelectedConversationId={setSelectedConversationId}
+            />
+          )}
+        </Box>
+
+        {selectedProject && selectedProjectId != -1 && (
+          <RightPanel
+            selectedInvId={selectedInvestigationId}
+            projectSelected={selectedProject}
+            projOpen={projOpen}
+            setProjOpen={setProjOpen}
+            showWindowAddfile={showWindowFile}
+            setShowWindowAddFile={setShowwindowFile}
           />
         )}
       </Box>
-
-      {selectedProject && selectedProjectId!=-1 && (
-        <RightPanel
-          selectedInvId={selectedInvestigationId}
-          projectSelected={selectedProject}
-          projOpen={projOpen}
-          setProjOpen={setProjOpen}
-          showWindowAddfile={showWindowFile}
-          setShowWindowAddFile={setShowwindowFile}
-        />
-      )}
-    </Box>
-  </>
-);
+    </>
+  );
 }
 

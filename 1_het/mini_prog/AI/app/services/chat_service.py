@@ -4,7 +4,8 @@ from app.models.models import ServiceResult, ChatRequest
 from app.services.file_service import FileService
 from app.config import QDRANT_URL, QDRANT_COLLECTION, GEN_MODEL, OLLAMA_URL
 from app.services.rag_graph import rag_graph
-#langgraph nálküli válaszgenerálás
+
+#langgraph nélküli válaszgenerálás
 async def send_message_async(prompt: ChatRequest) -> ServiceResult:
     async with httpx.AsyncClient(timeout=10000) as http_client:
         # text -> embedding
@@ -93,23 +94,12 @@ async def send_message_async(prompt: ChatRequest) -> ServiceResult:
         })
 async def send_message_async_langgraph(prompt: ChatRequest) -> ServiceResult:
     result = await rag_graph.ainvoke({
-        "question": prompt.prompt
+        "question": prompt.prompt,
+        "user_id": prompt.userId,
+        "investigation_id": prompt.investigationId,
+        "project_id": prompt.projectId
     })
 
     return ServiceResult.success({
         "answer": result.get("answer", "Nem találom a dokumentumokban.")
     })
-
-'''   
-async def create_context(results, context_parts):
-        # context összeállítása
-
-        for r in results:
-            payload = r.get("payload", {})
-
-            text = payload.get("text") or " "
-            doc_name = payload.get("docName") or "doc"
-            idx = payload.get("chunkText", 0)
-
-            context_parts.append(f"[Forrás: {doc_name} #{idx}]\n{text}")
-'''  

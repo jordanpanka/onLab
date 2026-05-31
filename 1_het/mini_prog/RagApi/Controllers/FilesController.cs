@@ -11,7 +11,7 @@ using UglyToad.PdfPig.Graphics.Colors;
 public class FilesController : ControllerBase
 {
     private readonly FileService filesService;
-     private readonly MinioService minioService;
+    private readonly MinioService minioService;
 
     public FilesController(FileService fs, MinioService ms)
     {
@@ -52,4 +52,3 @@ public class FilesController : ControllerBase
     }
 
 }
-public record Ids( int invId, int projectId); 

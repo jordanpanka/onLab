@@ -24,3 +24,6 @@ class Ids(BaseModel):
     
 class ChatRequest(BaseModel):
     prompt: str
+    userId:int
+    investigationId:int
+    projectId:int

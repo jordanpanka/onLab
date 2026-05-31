@@ -395,7 +395,6 @@ app.MapControllers();
 app.Run();
 
 
-public record ChatRequest(string prompt);
-public record RegisterData(string email, string password, string firstName, string lastName);
+
 
 

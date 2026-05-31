@@ -124,11 +124,3 @@ public class ProjectController : ControllerBase
     }
     
 }
-public record FilesData(int id, int projectId);
-public record ProjectData(int invid, string name, string description);
-public record InvestigationData(string name, string description);
-public record UserID(int id);
-public record InvestigationID(int id);
-public record ProjectID(int id);
-
-public record RenameData(int id, string name);

@@ -210,14 +210,14 @@ public class ChatService
         }
 
     }*/
-   public async Task<ServiceResult> SendMessageAsync(ChatRequest prompt)
+   public async Task<ServiceResult> SendMessageAsync(int userId,ChatRequest prompt)
 {
     try
     {
         httpClient.Timeout = TimeSpan.FromMinutes(5);
         var pythonUrl = $"{configuration["AI:PythonUrl"]}/api/chat/files/send";
 
-        var response = await httpClient.PostAsJsonAsync(pythonUrl, prompt);
+        var response = await httpClient.PostAsJsonAsync(pythonUrl,new ChatRequestPython(prompt.prompt,userId, prompt.investigationId,prompt.projectId));
 
         var responseBody = await response.Content.ReadAsStringAsync();
 

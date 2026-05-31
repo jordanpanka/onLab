@@ -152,13 +152,13 @@ class Neo4jService:
         query = """
         MERGE (source:File {
             user_id: $user_id,
-            investigation_id: $investigation_id
+            investigation_id: $investigation_id,
             projectId: $project_id,
             path: $source_file_path
         })
         MERGE (module:Module {
             user_id: $user_id,
-            investigation_id: $investigation_id
+            investigation_id: $investigation_id,
             projectId: $project_id,
             name: $imported_module
         })

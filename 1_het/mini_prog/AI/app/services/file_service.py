@@ -8,7 +8,7 @@ import httpx
 
 from fastapi import UploadFile
 
-from app.config import QDRANT_URL, QDRANT_COLLECTION, EMBED_MODEL, OLLAMA_URL
+from app.config import EMBED_MODEL_CLOUD, OLLAMA_API_KEY, OLLAMA_BASE_URL, QDRANT_URL, QDRANT_COLLECTION, EMBED_MODEL, OLLAMA_URL
 from app.models.models import Ids, ServiceResult
 from app.services.parse_service import CodeParser
 from app.services.node_creator import NodeCreator
@@ -17,11 +17,14 @@ from llama_index.core.schema import TextNode
 from typing import List
 from fastapi import UploadFile, Form, File
 
+from app.services.neo4j_service import Neo4jService
+
 class FileService:
     ignore_directories_files=[ "node_modules", "bin", "obj", "dist", "build" , ".git ",".venv" ,"__pycache__", 	".exe", ".dll ",".so ",".obj",".class" ]
     code_sources=[".cs", ".py" , ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rs", ".php", ".cpp", ".c"]
     structured_data=[".json ",".yaml", ".yml" , ".xml", ".toml", ".ini"]
     documentation=[".md", ".txt", ".rst", ".pdf"]
+    
     async def extract_text_from_pdf(self,file: UploadFile) -> str:
         # file beolvasása memóriába
         content = file.file.read()
@@ -51,7 +54,8 @@ class FileService:
         
         return chunks
 
-    async def embed(self,http: httpx.AsyncClient, text: str) -> list[float]:
+    async def embed(self, http: httpx.AsyncClient, text: str) -> list[float]:
+
         payload = {
             "model": EMBED_MODEL,
             "prompt": text
@@ -61,112 +65,186 @@ class FileService:
             f"{OLLAMA_URL}/api/embeddings",
             json=payload
         )
+
+        print("STATUS:", response.status_code)
+        print("BODY:", response.text[:300])
+
         response.raise_for_status()
 
         data = response.json()
-        return [float(x) for x in data["embedding"]]
 
+        return [float(x) for x in data["embedding"]]
+    
     async def upload_qdrant_async(self,user_id: int ,
         inv_id: int,
         project_id: int,
         paths: List[str] ,
         files: List[UploadFile] ) -> ServiceResult:
-        async with httpx.AsyncClient(timeout=5000) as http_client:
-            points=[]
-            for i in range(len(files)):
-                text = ""
-                
-                if files[i] is None:
-                    return ServiceResult.fail("File is empty")
+        try:
+            async with httpx.AsyncClient(timeout=5000) as http_client:
+                points=[]
+                neo4j_service=Neo4jService()
+                for i in range(len(files)):
+                    text = ""
+                    
+                    if files[i] is None:
+                        return ServiceResult.fail("File is empty")
 
-                content = await files[i].read()
-                if len(content) == 0:
-                    return ServiceResult.fail("File is empty")
+                    content = await files[i].read()
+                    if len(content) == 0:
+                        return ServiceResult.fail("File is empty")
 
-                await files[i].seek(0)
+                    await files[i].seek(0)
 
-                doc_name = os.path.basename(files[i].filename or "")
-                ext = os.path.splitext(doc_name)[1].lower()
-                #depends on the filetype, what should i do
-                type=self.select_file_type(paths[i])
-                
-                match type:
-                    case "ignore":
-                        continue
-                    case "code":
-                        nodes=await self.process_code_file(files[i], paths[i])
-                        for node in nodes:
-                            #embed code and summary text
-                            code=await self.embed(http_client,node.text)
-                            summary=await self.embed(http_client,node.metadata["summary"])
-                            points.append({
-                                "id":str(uuid.uuid4()),
-                                "vector":{
-                                    "code":code,
-                                    "summary":summary
-                                },
-                                "payload":{
-                                    "userId":user_id,
-                                    "investigationId": inv_id,
-                                    "projectId": project_id,
-                                    "docName": files[i].filename,
-                                    "path": node.metadata.get("path", paths[i]),
-                                    "kind": node.metadata.get("kind", "code"),
-                                    "name": node.metadata.get("name", ""),
-                                    "code": node.text,
-                                    "summary": node.metadata["summary"],
-                                    "start_line": node.metadata.get("start_line"),
-                                    "end_line": node.metadata.get("end_line"),
-                                    "ts_type": node.metadata.get("ts_type")
-                                }
-                                    
-                            })
+                    doc_name = os.path.basename(files[i].filename or "")
+                    ext = os.path.splitext(doc_name)[1].lower()
+                    #depends on the filetype, what should i do
+                    type=self.select_file_type(paths[i])
+                    
+                    match type:
+                        case "ignore":
+                            continue
+                        case "code":
+                            nodes, relations=await self.process_code_file(files[i], paths[i])
                             
-                    case "structured":
-                        continue
-                    case "documentation":
-                        nodes=await self.process_doc_file(files[i],paths[i])
-                        for node in nodes:
-                            text_vec=await self.embed(http_client,node.text)
-                            points.append({
-                                "id":str(uuid.uuid4()),
-                                "vector":{
-                                    "text":text_vec
-                                },
-                                "payload":{
-                                    "userId":user_id,
-                                    "investigationId": inv_id,
-                                    "projectId": project_id,
-                                    "docName": files[i].filename
-                                }
-                            })
+                            neo4j_service.save_file(
+                                user_id=user_id,
+                                investigation_id=inv_id,
+                                project_id=project_id,
+                                file_path=paths[i],
+                                file_name=files[i].filename
+                            )
+                            for node in nodes:
+                                kind = node.metadata.get("kind")
+                                name = node.metadata.get("name")
+                                start_line = node.metadata.get("start_line")
+                                end_line = node.metadata.get("end_line")
+                                                    
+                                if kind == "class":
+                                    neo4j_service.save_class(
+                                        user_id=user_id,
+                                        investigation_id=inv_id,
+                                        project_id=project_id,
+                                        file_path=paths[i],
+                                        class_name=name,
+                                        start_line=start_line,
+                                        end_line=end_line
+                                    )
+
+                                elif kind == "function":
+                                    neo4j_service.save_function(
+                                        user_id=user_id,
+                                        investigation_id=inv_id,
+                                        project_id=project_id,
+                                        file_path=paths[i],
+                                        function_name=name,
+                                        start_line=start_line,
+                                        end_line=end_line
+                                    )
+                                
+                                
+                                #embed code and summary text
+                                print("kód embed előtt")
+                                code=await self.embed(http_client,node.text)
+                                print(i)
+                                print("Kód embedding sikeres")
+                                summary=await self.embed(http_client,node.metadata["summary"])
+                                print("summary embedding sikeres")
+                                points.append({
+                                    "id":str(uuid.uuid4()),
+                                    "vector":{
+                                        "code":code,
+                                        "summary":summary
+                                    },
+                                    "payload":{
+                                        "userId":user_id,
+                                        "investigationId": inv_id,
+                                        "projectId": project_id,
+                                        "docName": files[i].filename,
+                                        "path": node.metadata.get("path", paths[i]),
+                                        "kind": node.metadata.get("kind", "code"),
+                                        "name": node.metadata.get("name", ""),
+                                        "code": node.text,
+                                        "summary": node.metadata["summary"],
+                                        "start_line": node.metadata.get("start_line"),
+                                        "end_line": node.metadata.get("end_line"),
+                                        "ts_type": node.metadata.get("ts_type")
+                                    }
+                                        
+                                })
+                            for imported_module in relations["imports"]:
+                                neo4j_service.save_import_relation(
+                                    user_id=user_id,
+                                    investigation_id=inv_id,
+                                    project_id=project_id,
+                                    source_file_path=paths[i],
+                                    imported_module=imported_module
+                                )
+
+                            for call in relations["calls"]:
+                                neo4j_service.save_call_relation(
+                                    user_id=user_id,
+                                    investigation_id=inv_id,
+                                    project_id=project_id,
+                                    caller_name=call["caller"],
+                                    caller_file_path=paths[i],
+                                    called_name=call["called"]
+                                )
+                            
+                            for method in relations["methods"]:
+                                neo4j_service.save_method_in_class(
+                                    user_id=user_id,
+                                    investigation_id=inv_id,
+                                    project_id=project_id,
+                                    file_path=paths[i],
+                                    class_name=method["class"],
+                                    method_name=method["method"],
+                                    start_line=method["start_line"],
+                                    end_line=method["end_line"]
+                                )
+                                
+                        case "structured":
+                            continue
+                        case "documentation":
+                            nodes=await self.process_doc_file(files[i],paths[i])
+                            for node in nodes:
+                                text_vec=await self.embed(http_client,node.text)
+                                points.append({
+                                    "id":str(uuid.uuid4()),
+                                    "vector":{
+                                        "text":text_vec
+                                    },
+                                    "payload":{
+                                        "userId":user_id,
+                                        "investigationId": inv_id,
+                                        "projectId": project_id,
+                                        "docName": files[i].filename
+                                    }
+                                })
+                
+                     
                     
                 
-               
-            # Text -> chunks
-            # chunk = chunk_text(text, 800, 170)
-            if not points:
-                return ServiceResult.fail("No points to upload")    
-                
-            upsert_payload = {
-                "points": points
-            }
+                # Text -> chunks
+                # chunk = chunk_text(text, 800, 170)
+                if not points:
+                    return ServiceResult.fail("No points to upload")    
+                    
+                upsert_payload = {
+                    "points": points
+                }
 
-            upsert_res = await http_client.put(
-                    f"{QDRANT_URL}/collections/{QDRANT_COLLECTION}/points?wait=true",
-                    json=upsert_payload
-            )
-            upsert_res.raise_for_status()
+                upsert_res = await http_client.put(
+                        f"{QDRANT_URL}/collections/{QDRANT_COLLECTION}/points?wait=true",
+                        json=upsert_payload
+                )
+                upsert_res.raise_for_status()
 
-            return ServiceResult.success()
+                return ServiceResult.success()
+        finally:
+            neo4j_service.close()  
         
-        #file should be uploaded in qdrant or not
-        #def should_ignore_file(self, path:str)->bool:
-        #    if(word in path for word in self.ignore_directories_files):
-        #        return True
-        #   return False
         
-    #select which type of document should we process
     def select_file_type(self, file_path: str) -> str:
         file_path = file_path.lower()
 
@@ -187,24 +265,24 @@ class FileService:
             tree, source_code=await c_parser.parse_code_to_tree(file,path)
             print("AST SYNTAX TREE")
             c_parser.print_tree(tree.root_node)
-            classnodes, functionnodes=c_parser.extract_class_nodes(tree.root_node)
+            classnodes, functionnodes=c_parser.extract_class_function_nodes(tree.root_node)
             print("CLASS NODES:", len(classnodes))
             print("FUNCTION NODES:", len(functionnodes))   
             relations = c_parser.extract_graph_relations(tree, source_code)   
             nodecreator=NodeCreator()
             llamaindexnodes=[]
             for node in classnodes:
-                llamaindexnodes.append(nodecreator.ts_node_to_llamaindex_node_class(node,source_code,path))
+                llamaindexnodes.extend(nodecreator.ts_node_to_llamaindex_node_class(node,source_code,path))
             
             for node in functionnodes:
-                llamaindexnodes.append(nodecreator.ts_node_to_llamaindex_node_function(node, source_code, path))
+                llamaindexnodes.extend(nodecreator.ts_node_to_llamaindex_node_function(node, source_code, path))
                 
             for node in llamaindexnodes:
                 summary= await nodecreator.generate_summary_to_node(node)
                 print("Az összefoglaló")
                 print(summary)
                 node.metadata["summary"] = summary
-            return llamaindexnodes
+            return llamaindexnodes, relations
         
         
     async def process_doc_file(self,file: UploadFile, path:str)->List[TextNode]:
