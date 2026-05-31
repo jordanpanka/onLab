@@ -1,4 +1,3 @@
-import { h } from "preact";
 import { render, screen, fireEvent } from "@testing-library/preact";
 import { describe, it, expect, vi } from "vitest";
 
@@ -26,7 +25,7 @@ vi.stubGlobal("fetch", vi.fn(() =>
   })
 ));
 
-import { ChatWindow } from "../Chat";
+import { ChatWindow } from "../components/chat/Chat";
 
 describe("ChatWindow", () => {
   it("bele lehet írni az inputba", () => {

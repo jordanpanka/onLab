@@ -1,7 +1,6 @@
-import { h } from "preact";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NewProject } from "../NewProject";
+import { NewProject } from "../components/project/NewProject";
 
 vi.mock("@mui/material", () => ({
   Dialog: (p: any) => (p.open ? <div>{p.children}</div> : null),

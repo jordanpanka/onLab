@@ -1,5 +1,5 @@
 # Logs
-logs
+logs/
 *.log
 
 # Node
@@ -12,6 +12,25 @@ coverage/
 # Environment files
 .env
 .env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+ragas_env/
+**/.venv/
+**/venv/
+**/ragas_env/
+.venv/
+venv/
+ragas_env/
+**/ragas_env/
 
 # .NET
 bin/
@@ -29,13 +48,35 @@ packages/
 *.sqlite
 *.cache
 
+# Neo4j
+data/
+logs/
+plugins/
+
+# Qdrant
+qdrant_storage/
+
+# MinIO
+minio_data/
+
+# Docker
+docker-compose.override.yml
+
 # Editor
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# Docker
-docker-compose.override.yml
+# Test results
+TestResults/
+htmlcov/
+
+# Build artifacts
+build/
+publish/
+
+# OS files
+ehthumbs.db

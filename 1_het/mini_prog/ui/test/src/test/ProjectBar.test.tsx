@@ -1,7 +1,6 @@
-import { h } from "preact";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ProjectBar } from "../ProjectBar";
+import { ProjectBar } from "../components/layout/ProjectBar";
 
 vi.mock("@mui/material", () => ({
   Box: (p: any) => <div>{p.children}</div>,

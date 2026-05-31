@@ -1,7 +1,6 @@
-import { h } from "preact";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Login } from "../login";
+import { Login } from "../pages/login";
 
 const routeMock = vi.fn();
 

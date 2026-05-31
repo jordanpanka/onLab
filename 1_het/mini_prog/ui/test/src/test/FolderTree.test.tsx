@@ -1,7 +1,6 @@
-import { h } from "preact";
 import { render, screen, fireEvent } from "@testing-library/preact";
 import { describe, it, expect, vi } from "vitest";
-import { buildTree, FolderTree } from "../FolderTree";
+import { buildTree, FolderTree } from "../components/layout/FolderTree";
 
 vi.mock("@mui/material", () => ({
   ListItemText: (props: any) => <span>{props.primary}</span>,

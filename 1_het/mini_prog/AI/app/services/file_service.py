@@ -218,7 +218,9 @@ class FileService:
                                         "userId":user_id,
                                         "investigationId": inv_id,
                                         "projectId": project_id,
-                                        "docName": files[i].filename
+                                        "docName": files[i].filename,
+                                        "text": node.text
+                                        
                                     }
                                 })
                 

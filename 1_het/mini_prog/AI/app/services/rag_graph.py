@@ -87,7 +87,7 @@ async def classify_question(state: RagState) -> RagState:
     """
 
     payload = {
-        "model": GEN_MODEL,
+        "model": GEN_MODEL_CLOUD,
         "prompt": classifier_prompt,
         "stream": False
     }

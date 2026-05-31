@@ -1,7 +1,6 @@
-import { h } from "preact";
 import { render, screen, fireEvent, waitFor } from "@testing-library/preact";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { RightPanel } from "../RightPanel";
+import { RightPanel } from "../components/layout/RightPanel";
 
 vi.mock("@mui/material", () => ({
   Drawer: (p: any) => <div>{p.children}</div>,

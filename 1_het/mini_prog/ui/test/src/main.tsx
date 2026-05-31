@@ -1,6 +1,6 @@
-import { render } from 'preact'
-import './index.css'
-import { App } from './app.tsx'
-import { OpenWindow } from './openWindow.tsx'
+import { render } from "preact";
+import "./styles/index.css";
+import { App } from "./pages/app";
+import { OpenWindow } from "./components/upload/openWindow";
 
 render(<OpenWindow />, document.getElementById('app')!)

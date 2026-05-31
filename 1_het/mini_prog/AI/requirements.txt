@@ -25,7 +25,7 @@ pypdf==6.9.2
 python-docx==1.2.0
 python-dotenv==1.2.2
 python-multipart==0.0.22
-pywin32==311
+pywin32==311; sys_platform == "win32"
 qdrant-client==1.17.1
 requests==2.33.0
 starlette==1.0.0
@@ -33,3 +33,11 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 urllib3==2.6.3
 uvicorn==0.42.0
+tree-sitter-python
+tree-sitter-javascript
+tree-sitter-typescript
+tree-sitter==0.20.1
+tree-sitter-languages==1.10.2
+llama-index
+neo4j
+langgraph
