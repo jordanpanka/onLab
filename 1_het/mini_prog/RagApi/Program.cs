@@ -89,11 +89,17 @@ builder.Services
       };
   });
 builder.Services.AddSingleton<IMinioClient>(sp =>
-    new MinioClient()
-        .WithEndpoint("localhost:9000")
-        .WithCredentials("miniorag", "miniorag")
-        .Build()
-);
+{
+    var config = sp.GetRequiredService<IConfiguration>();
+
+    return new MinioClient()
+        .WithEndpoint(config["Minio:Endpoint"] ?? "localhost:9000")
+        .WithCredentials(
+            config["Minio:AccessKey"] ?? "miniorag",
+            config["Minio:SecretKey"] ?? "miniorag")
+        .WithSSL(bool.TryParse(config["Minio:UseSsl"], out var ssl) && ssl)
+        .Build();
+});
 builder.Services.AddAuthorization();
 //add services
 builder.Services.AddScoped<AuthService>();
@@ -139,9 +145,9 @@ const string Ollama = "http://localhost:11434";
 const string Embed_model = "embeddinggemma:latest";
 const string Gen_model = "llama3";
 
-static async Task EnsureCollection(HttpClient http)
+static async Task EnsureCollection(HttpClient http, string qdrantUrl, string collection)
 {
-    var get = await http.GetAsync($"{Qdrant}/collections/{Collection}");
+    var get = await http.GetAsync($"{qdrantUrl}/collections/{collection}");
     if (get.IsSuccessStatusCode) return;
 
     var createPayload = new
@@ -167,7 +173,7 @@ static async Task EnsureCollection(HttpClient http)
     };
 
     var create = await http.PutAsJsonAsync(
-        $"{Qdrant}/collections/{Collection}",
+        $"{qdrantUrl}/collections/{collection}",
         createPayload
     );
 
@@ -175,13 +181,31 @@ static async Task EnsureCollection(HttpClient http)
 }
 app.Lifetime.ApplicationStarted.Register(() =>
 {
+    // Qdrant lives at a different host in Docker than when running locally,
+    // so take the URL from config (Ai__QdrantUrl) rather than a const.
+    var qdrantUrl = app.Configuration["Ai:QdrantUrl"] ?? Qdrant;
+    var qdrantCollection = app.Configuration["Ai:Collection"] ?? Collection;
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+
     _ = Task.Run(async () =>
     {
-        using var scopeHttp = new HttpClient();
-        await EnsureCollection(scopeHttp);
+        // Fire-and-forget: without this catch, any failure here is swallowed
+        // silently and the missing collection only shows up as a failed upload.
+        try
+        {
+            using var scopeHttp = new HttpClient();
+            await EnsureCollection(scopeHttp, qdrantUrl, qdrantCollection);
+            logger.LogInformation(
+                "Qdrant collection '{Collection}' ready at {Url}",
+                qdrantCollection, qdrantUrl);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex,
+                "Failed to ensure Qdrant collection '{Collection}' at {Url}",
+                qdrantCollection, qdrantUrl);
+        }
     });
-
-
 });
 
 /*
