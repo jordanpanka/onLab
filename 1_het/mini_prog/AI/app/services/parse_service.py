@@ -98,13 +98,98 @@ class CodeParser:
         "call": ["call_expression"],
         "import": ["import_statement"]
     }
+},
+
+    ".php": {
+        "language": get_language("php"),
+        "name": "php",
+        "node_types": {
+            "class": ["class_declaration", "interface_declaration", "trait_declaration", "enum_declaration"],
+            "function": ["function_definition", "method_declaration"],
+            "call": [
+                "function_call_expression", "member_call_expression",
+                "scoped_call_expression", "nullsafe_member_call_expression",
+                "object_creation_expression"
+            ],
+            # A require/include is ugyanugy fuggoseg, mint a use.
+            "import": [
+                "namespace_use_declaration", "require_expression", "require_once_expression",
+                "include_expression", "include_once_expression"
+            ]
+        }
+    },
+
+    ".go": {
+        "language": get_language("go"),
+        "name": "go",
+        # A type_declaration csak burkolo, a nev a type_spec-en van, ezert az
+        # utobbi az "osztaly". A metodusok a Go-ban a tipuson kivul allnak,
+        # igy fuggvenykent indexelodnek, nem a struct metodusaikent.
+        "node_types": {
+            "class": ["type_spec"],
+            "function": ["function_declaration", "method_declaration"],
+            "call": ["call_expression"],
+            "import": ["import_declaration"]
+        }
+    },
+
+    ".rs": {
+        "language": get_language("rust"),
+        "name": "rust",
+        # Az impl_item is "osztaly": a metodusok a torzseben ulnek, enelkul
+        # nem allna ossze az osztaly-metodus kapcsolat.
+        "node_types": {
+            "class": ["struct_item", "enum_item", "trait_item", "impl_item"],
+            "function": ["function_item"],
+            "call": ["call_expression"],
+            "import": ["use_declaration", "extern_crate_declaration"]
+        }
+    },
+
+    ".c": {
+        "language": get_language("c"),
+        "name": "c",
+        "node_types": {
+            "class": ["struct_specifier", "union_specifier", "enum_specifier"],
+            "function": ["function_definition"],
+            "call": ["call_expression"],
+            "import": ["preproc_include"]
+        }
+    },
+
+    ".cpp": {
+        "language": get_language("cpp"),
+        "name": "cpp",
+        "node_types": {
+            "class": ["class_specifier", "struct_specifier", "union_specifier", "enum_specifier"],
+            "function": ["function_definition"],
+            "call": ["call_expression"],
+            "import": ["preproc_include", "using_declaration"]
+        }
+    }
 }
-}
+
+    # A .h lehet C es C++ is; a cpp grammatika mindkettot elparszolja, a c nem.
+    code_parsers[".hpp"] = code_parsers[".cpp"]
+    code_parsers[".h"] = code_parsers[".cpp"]
+
+    # Egy deklaracio nevet hordozo node-tipusok a tamogatott nyelveken. A PHP
+    # "name"-et hasznal, a Rust/C++ tipusdeklaraciok "type_identifier"-t, a Go
+    # metodusok es a C++ tagfuggvenyek "field_identifier"-t.
+    name_node_types = [
+        "identifier", "property_identifier", "name",
+        "type_identifier", "field_identifier", "qualified_identifier"
+    ]
+
     def select_language(self, file_path:str)->str:
-        ext = os.path.splitext(file_path)[1]
+        # Kisbetusitve: a .PY es a .Cs ugyanaz a nyelv, mint a .py es a .cs.
+        ext = os.path.splitext(file_path)[1].lower()
         self.selected_language=ext
-        return self.code_parsers[ext]["language"]
-    
+        config=self.code_parsers.get(ext)
+        # Indexeles helyett .get(): igy a hivo ValueError-aga fut le, nem egy
+        # nyers KeyError szall fel az API-ig.
+        return config["language"] if config else None
+
     async def parse_code_to_tree(self,file:UploadFile, path:str):
         
         source_code=await file.read()
@@ -134,13 +219,32 @@ class CodeParser:
 
         return classes, functions
     
+    def node_text(self, ts_node, source_code: bytes) -> str:
+        return source_code[ts_node.start_byte:ts_node.end_byte].decode(
+            "utf-8",
+            errors="replace"
+        )
+
     def get_node_name(self, ts_node, source_code: bytes) -> str | None:
+        # A legtobb grammatika megcimkezi a deklaracio nevet, es a cimke
+        # megbizhatobb, mint a gyerekek sorrendje.
+        named = ts_node.child_by_field_name("name")
+        if named is not None:
+            return self.node_text(named, source_code)
+
+        # A C es a C++ egy-ket szinttel lejjebb, a declaratorban tartja a nevet:
+        # function_definition -> function_declarator -> identifier.
+        declarator = ts_node.child_by_field_name("declarator")
+        while declarator is not None:
+            if declarator.type in self.name_node_types:
+                return self.node_text(declarator, source_code)
+            declarator = declarator.child_by_field_name("declarator")
+
+        # Nev-mezo nelkuli deklaraciok (pl. a Rust impl_item "type" mezoje).
         for child in ts_node.children:
-            if child.type in ["identifier", "property_identifier"]:
-                return source_code[child.start_byte:child.end_byte].decode(
-                    "utf-8",
-                    errors="replace"
-                )
+            if child.type in self.name_node_types:
+                return self.node_text(child, source_code)
+
         return None
         
     def print_tree(self, node, indent=0):

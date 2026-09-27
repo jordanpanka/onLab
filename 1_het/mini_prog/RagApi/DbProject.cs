@@ -13,6 +13,7 @@ namespace ef
         public string Description {get; set;}
         public List<DbFile> Files {get; set;}
         public List<DbConversation> Conversations {get; set;}
+        public List<DbRepository> Repositories {get; set;}
 
         [ForeignKey("InvestigationID")]
         public DbInvestigation Investigation {get; set;}

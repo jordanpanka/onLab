@@ -278,8 +278,9 @@ public async Task<ServiceResult> UploadQdrantPythonAsync(int userId, List<IFormF
 {
     try
     {
-       
-        httpClient.Timeout = TimeSpan.FromMinutes(10);
+        // A timeout a DI-regisztrációban van (Program.cs). Itt nem állítható:
+        // a HttpClient.Timeout az első elküldött kérés után zárolódik, a
+        // kötegelt import pedig ugyanezt a példányt használja minden köteghez.
 
         using var content = new MultipartFormDataContent();
 

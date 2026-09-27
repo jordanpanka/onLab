@@ -20,10 +20,45 @@ from fastapi import UploadFile, Form, File
 from app.services.neo4j_service import Neo4jService
 
 class FileService:
-    ignore_directories_files=[ "node_modules", "bin", "obj", "dist", "build" , ".git ",".venv" ,"__pycache__", 	".exe", ".dll ",".so ",".obj",".class" ]
-    code_sources=[".cs", ".py" , ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rs", ".php", ".cpp", ".c"]
-    structured_data=[".json ",".yaml", ".yml" , ".xml", ".toml", ".ini"]
+
+    ignore_directories = [
+        "node_modules", "bin", "obj", "dist", "build", "out",
+        ".git", ".github", ".venv", "venv", "__pycache__", "site-packages",
+        ".next", ".nuxt", "target", "vendor", "ragas_env",
+        ".pytest_cache", ".mypy_cache", ".idea", ".vs", "coverage", "packages",
+    ]
+
+    ignore_extensions = [
+        ".exe", ".dll", ".so", ".dylib", ".obj", ".class", ".pyc", ".pyd",
+        ".bin", ".dat", ".lock", ".png", ".jpg", ".jpeg", ".gif", ".svg",
+        ".ico", ".zip", ".gz", ".tar", ".woff", ".woff2", ".ttf",
+    ]
+
+    ignore_filenames = [".env", "id_rsa", "id_ed25519", ".npmrc", ".pypirc"]
+
+    code_sources=[".cs", ".py" , ".js", ".ts", ".tsx", ".jsx", ".java", ".go", ".rs", ".php", ".cpp", ".c", ".h", ".hpp"]
+    structured_data=[".json",".yaml", ".yml" , ".xml", ".toml", ".ini", ".cfg", ".conf", ".properties", ".gradle", ".sql"]
     documentation=[".md", ".txt", ".rst", ".pdf"]
+
+    known_filenames = {
+        "dockerfile": "structured",
+        "containerfile": "structured",
+        "makefile": "structured",
+        "jenkinsfile": "structured",
+        "vagrantfile": "structured",
+        "procfile": "structured",
+        "codeowners": "structured",
+        "gemfile": "structured",
+        "rakefile": "structured",
+        "readme": "documentation",
+        "license": "documentation",
+        "licence": "documentation",
+        "changelog": "documentation",
+        "contributing": "documentation",
+        "authors": "documentation",
+        "notice": "documentation",
+        "todo": "documentation",
+    }
     
     async def extract_text_from_pdf(self,file: UploadFile) -> str:
         # file beolvasása memóriába
@@ -55,6 +90,9 @@ class FileService:
         return chunks
 
     async def embed(self, http: httpx.AsyncClient, text: str) -> list[float]:
+       
+        if not text or not text.strip():
+            return []
 
         payload = {
             "model": EMBED_MODEL,
@@ -66,14 +104,11 @@ class FileService:
             json=payload
         )
 
-        print("STATUS:", response.status_code)
-        print("BODY:", response.text[:300])
-
         response.raise_for_status()
 
         data = response.json()
 
-        return [float(x) for x in data["embedding"]]
+        return [float(x) for x in data.get("embedding") or []]
     
     async def upload_qdrant_async(self,user_id: int ,
         inv_id: int,
@@ -83,6 +118,7 @@ class FileService:
         try:
             async with httpx.AsyncClient(timeout=5000) as http_client:
                 points=[]
+                skipped_nodes=0
                 neo4j_service=Neo4jService()
                 for i in range(len(files)):
                     text = ""
@@ -144,12 +180,16 @@ class FileService:
                                 
                                 
                                 #embed code and summary text
-                                print("kód embed előtt")
                                 code=await self.embed(http_client,node.text)
-                                print(i)
-                                print("Kód embedding sikeres")
                                 summary=await self.embed(http_client,node.metadata["summary"])
-                                print("summary embedding sikeres")
+
+                                # Mindkét vektor kell: a kollekció "code" és
+                                # "summary" néven is 768 dimenziót vár.
+                                if not code or not summary:
+                                    skipped_nodes += 1
+                                    print(f"Kihagyva (üres embedding): {paths[i]} -> {node.metadata.get('name')}")
+                                    continue
+
                                 points.append({
                                     "id":str(uuid.uuid4()),
                                     "vector":{
@@ -203,12 +243,17 @@ class FileService:
                                     end_line=method["end_line"]
                                 )
                                 
-                        case "structured":
-                            continue
-                        case "documentation":
+                        # Config files (json/yaml/Dockerfile/...) and prose both
+                        # embed as plain text; neither has a tree-sitter grammar
+                        # configured, so there is nothing to parse into nodes.
+                        case "structured" | "documentation":
                             nodes=await self.process_doc_file(files[i],paths[i])
                             for node in nodes:
                                 text_vec=await self.embed(http_client,node.text)
+                                if not text_vec:
+                                    skipped_nodes += 1
+                                    print(f"Kihagyva (üres embedding): {paths[i]}")
+                                    continue
                                 points.append({
                                     "id":str(uuid.uuid4()),
                                     "vector":{
@@ -219,8 +264,10 @@ class FileService:
                                         "investigationId": inv_id,
                                         "projectId": project_id,
                                         "docName": files[i].filename,
+                                        "path": node.metadata.get("path", paths[i]),
+                                        "kind": type,
                                         "text": node.text
-                                        
+
                                     }
                                 })
                 
@@ -230,8 +277,11 @@ class FileService:
                 # Text -> chunks
                 # chunk = chunk_text(text, 800, 170)
                 if not points:
-                    return ServiceResult.fail("No points to upload")    
                     
+                    print(f"Nincs feltöltendő pont ({skipped_nodes} node kihagyva)")
+                    return ServiceResult.success({"indexed": 0, "skipped": skipped_nodes})
+
+
                 upsert_payload = {
                     "points": points
                 }
@@ -242,24 +292,43 @@ class FileService:
                 )
                 upsert_res.raise_for_status()
 
-                return ServiceResult.success()
+                return ServiceResult.success({"indexed": len(points), "skipped": skipped_nodes})
         finally:
             neo4j_service.close()  
         
         
     def select_file_type(self, file_path: str) -> str:
-        file_path = file_path.lower()
+        normalized = file_path.replace("\\", "/").lower()
+        segments = [s for s in normalized.split("/") if s]
 
-        if any(word.strip() in file_path for word in self.ignore_directories_files):
-            return "ignore"
-        elif any(file_path.endswith(ext.strip()) for ext in self.code_sources):
-            return "code"
-        elif any(file_path.endswith(ext.strip()) for ext in self.structured_data):
-            return "structured"
-        elif any(file_path.endswith(ext.strip()) for ext in self.documentation):
-            return "documentation"
-        else:
+        if not segments:
             return "unknown"
+
+        filename = segments[-1]
+        directories = segments[:-1]
+
+        # Whole-segment comparison, not a substring test over the full path.
+        if any(directory in self.ignore_directories for directory in directories):
+            return "ignore"
+
+        if filename in self.ignore_filenames:
+            return "ignore"
+
+        extension = os.path.splitext(filename)[1]
+
+        if extension:
+            if extension in self.ignore_extensions:
+                return "ignore"
+            if extension in self.code_sources:
+                return "code"
+            if extension in self.structured_data:
+                return "structured"
+            if extension in self.documentation:
+                return "documentation"
+            return "unknown"
+
+        # Dockerfile, Makefile, README, LICENSE and friends.
+        return self.known_filenames.get(filename, "unknown")
             
     #process code files
     async def process_code_file(self,file: UploadFile, path:str)->List[TextNode]:
@@ -287,8 +356,18 @@ class FileService:
             return llamaindexnodes, relations
         
         
+    async def extract_text_from_plain(self, file: UploadFile) -> str:
+        content = await file.read()
+        # Repository files are whatever encoding the author used; never fail on one.
+        return content.decode("utf-8", errors="replace")
+
     async def process_doc_file(self,file: UploadFile, path:str)->List[TextNode]:
-            text=await self.extract_text_from_pdf(file)
+           
+            if path.lower().endswith(".pdf"):
+                text=await self.extract_text_from_pdf(file)
+            else:
+                text=await self.extract_text_from_plain(file)
+
             chunks=self.chunk_text(text, 800, 120)
             tsnodes=[]
             for chunk in chunks:

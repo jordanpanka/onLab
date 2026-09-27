@@ -17,6 +17,15 @@ class RagState(TypedDict, total=False):
     question: str
     rephrased_question: str
 
+    # Angol pivot-nyelv. Az index (kulonosen a summary-vektorok) angolul keszul,
+    # ezert a keresesig minden angolul folyik: question_en a lefordtott kerdes,
+    # answer_en a modell angol valasza. A language/language_name csak arra kell,
+    # hogy a vegen visszaforditsuk a valaszt a kerdezo nyelvere.
+    language: str
+    language_name: str
+    question_en: str
+    answer_en: str
+
     question_type: str
     search_vectors: List[str]
 
@@ -44,71 +53,97 @@ class RagState(TypedDict, total=False):
 
     ragas_run_id: str
 
-async def classify_question(state: RagState) -> RagState:   
+def extract_json(raw: str) -> dict:
+    """A modell valaszabol kiszedi a JSON objektumot.
+
+    A kisebb modellek hajlamosak ```json keretbe tenni a valaszt vagy egy
+    bevezeto mondatot irni ele; a nyers json.loads ezeken elhasal.
+    """
+    text = raw.strip()
+
+    if "```" in text:
+        parts = text.split("```")
+        if len(parts) > 1:
+            text = parts[1]
+            if text.lstrip().lower().startswith("json"):
+                text = text.lstrip()[4:]
+
+    start = text.find("{")
+    end = text.rfind("}")
+
+    if start == -1 or end == -1 or end < start:
+        raise ValueError(f"Nincs JSON a valaszban: {raw[:200]}")
+
+    return json.loads(text[start:end + 1])
+
+
+async def classify_question(state: RagState) -> RagState:
     question = state["question"]
 
+    # A nyelvfelismeres es a forditas szandekosan ugyanebben a hivasban tortenik.
+    # Kulon node-kent minden kerdes egy plusz LLM-kort jelentene, ami CPU-n futo
+    # modellnel percekben merheto; a klasszifikacio ugyis strukturalt JSON-t ad
+    # vissza, ket mezot elbir meg.
     classifier_prompt = f"""
-    Feladat:
-    Osztályozd a felhasználói kérdést RAG keresési szempontból.
+    Task:
+    Analyse a user's question about a source code repository.
 
-    Lehetséges kategóriák:
+    Categories:
 
     1. code
-    Akkor válaszd, ha a kérdés konkrét kódra, függvényre, osztályra, metódusra,
-    hibára, importra, API-ra, routerre, service-re, változóra vagy implementációra kérdez.
+    The question asks about concrete code: a function, class, method, error,
+    import, API, router, service, variable or implementation detail.
 
     2. summary
-    Akkor válaszd, ha a kérdés azt kéri, hogy magyarázd el, mit csinál egy komponens,
-    fájl, osztály, metódus vagy folyamat.
+    The question asks you to explain what a component, file, class, method or
+    process does.
 
     3. text
-    Akkor válaszd, ha dokumentációra, README-re, telepítésre, konfigurációra,
-    leírásra vagy használati útmutatóra kérdez.
+    The question asks about documentation, a README, installation, configuration,
+    a description or a usage guide.
 
     4. general
-    Akkor válaszd, ha nem egyértelmű, vagy többféle keresés is indokolt.
+    It is not clear, or several kinds of search are justified.
 
-    A válaszod KIZÁRÓLAG érvényes JSON legyen, semmi más.
+    Your answer must be ONLY valid JSON, nothing else.
 
-    Formátum:
+    Format:
     {{
+    "language": "ISO 639-1 code of the language the question is written in, e.g. en, hu, de",
+    "language_name": "English name of that language, e.g. English, Hungarian, German",
+    "question_en": "the question translated into English",
     "question_type": "code | summary | text | general",
     "search_vectors": ["code", "summary", "text"]
     }}
 
-    Szabályok:
-    - code kérdésnél: ["code", "summary"]
-    - summary kérdésnél: ["summary", "code", "text"]
-    - text kérdésnél: ["text", "summary"]
-    - general kérdésnél: ["summary", "code", "text"]
+    Search vector rules:
+    - for code: ["code", "summary"]
+    - for summary: ["summary", "code", "text"]
+    - for text: ["text", "summary"]
+    - for general: ["summary", "code", "text"]
 
-    Kérdés:
+    Translation rules:
+    - If the question is already in English, copy it into question_en unchanged.
+    - Keep identifiers, class names, function names, file paths, file extensions
+      and code fragments EXACTLY as they are written. Never translate them.
+      "Mit csinal a validate_proxy?" becomes "What does validate_proxy do?",
+      never "What does validate the proxy do?".
+    - Translate only the natural language part of the question.
+    - Keep the meaning; do not answer the question and do not explain it.
+
+    Question:
     {question}
     """
 
-    payload = {
-        "model": GEN_MODEL_CLOUD,
-        "prompt": classifier_prompt,
-        "stream": False
-    }
-
     try:
-        async with httpx.AsyncClient(timeout=10000) as http_client:
-            response = await http_client.post(
-                f"{OLLAMA_BASE_URL}/generate",
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer {OLLAMA_API_KEY}",
-                    "Content-Type": "application/json"
-                },
-            )
-            
-            response.raise_for_status()
+        # call_llm-en keresztul, nem sajat httpx-hivassal: a helyi Ollama nem ker
+        # auth-ot, es a httpx elutasitja az ures "Bearer " fejlecet. Ez a node
+        # korabban sajat kezuleg allitotta ossze a kerest, es emiatt MINDEN
+        # kerdesnel elhasalt ("Illegal header value b'Bearer '"), csondben a
+        # fallback againra esve. A call_llm mar kezeli ezt az esetet.
+        raw_answer = (await call_llm(classifier_prompt)).strip()
 
-        data = response.json()
-        raw_answer = data.get("response", "").strip()
-
-        parsed = json.loads(raw_answer)
+        parsed = extract_json(raw_answer)
 
         question_type = parsed.get("question_type", "general")
         search_vectors = parsed.get("search_vectors", ["summary", "code", "text"])
@@ -127,108 +162,128 @@ async def classify_question(state: RagState) -> RagState:
         if not search_vectors:
             search_vectors = ["summary", "code", "text"]
 
+        language = str(parsed.get("language") or "en").strip().lower()[:5]
+        language_name = str(parsed.get("language_name") or "English").strip()
+
+        # Ures forditas eseten az eredeti kerdessel megyunk tovabb: egy rossz
+        # kereses is tobbet er, mint egy ures.
+        question_en = str(parsed.get("question_en") or "").strip() or question
+
+        print(f"Nyelv: {language} ({language_name}) | Angol kerdes: {question_en}")
+
         return {
             **state,
             "question_type": question_type,
-            "search_vectors": search_vectors
+            "search_vectors": search_vectors,
+            "language": language,
+            "language_name": language_name,
+            "question_en": question_en
         }
 
     except Exception as e:
+        # A forditas is itt bukik el, ezert a fallback angolnak veszi a kerdest:
+        # igy a valasz a kerdes eredeti nyelven szuletik, mint a pivot elott.
+        # Rosszabb, mint a forditott ut, de hasznalhato valaszt ad.
         print("classify_question hiba:", e)
         return {
             **state,
             "question_type": "general",
-            "search_vectors": ["summary", "code", "text"]
+            "search_vectors": ["summary", "code", "text"],
+            "language": "en",
+            "language_name": "English",
+            "question_en": question
         }
 
 async def rephrase_question(state: RagState) ->RagState:
-    start_question=state["question"]
-    
+    # Mar a lefordtott kerdesbol dolgozunk: a keresesi lekerdezesnek angolul
+    # kell lennie, mert az index is angol.
+    start_question = state.get("question_en") or state["question"]
+
     rewrite_prompt = f"""
-    Feladat:
-    A felhasználói kérdést alakítsd át egy olyan keresési lekérdezéssé,
-    ami a lehető leghatékonyabb vector adatbázis keresést eredményezi
-    egy programkódokat és dokumentációt tartalmazó RAG rendszerben.
+    Task:
+    Turn the user's question into a search query that gives the best possible
+    vector database search in a RAG system containing source code and documentation.
 
-    Cél:
-    - Javítsd a szemantikus keresést
-    - Emeld ki a fontos technikai fogalmakat
-    - Egészítsd ki releváns szinonimákkal
-    - Használj fejlesztői terminológiát
-    - Tartsd meg az eredeti jelentést
-    - Ne válaszolj a kérdésre
-    - Ne magyarázz
-    - Csak a keresési lekérdezést add vissza
+    Goal:
+    - Improve semantic search
+    - Bring out the important technical concepts
+    - Add relevant synonyms
+    - Use developer terminology
+    - Keep the original meaning
+    - Do not answer the question
+    - Do not explain
+    - Return only the search query
 
-    Szabályok:
-    - Rövid, tömör keresési szöveg legyen
-    - Tartalmazhat kulcsszavakat
-    - Tartalmazhat technikai fogalmakat
-    - Tartalmazhat kapcsolódó komponens neveket
-    - Tartalmazhat framework neveket
-    - Tartalmazhat programozási fogalmakat
-    - Ne használj markdown formázást
-    - Ne írj teljes mondatokat, ha nem szükséges
-    - A válaszod CSAK a keresési lekérdezés legyen
-    - Ne írj bevezetőt
-    - Ne írj magyarázatot
-    - Ne használj idézőjeleket
-    - Ha a kérdésben szerepel osztály, függvény vagy fájlnév,
-    azt mindig tartsd meg a keresési lekérdezésben
-    
-    Kérdés típus viselkedés:
+    Rules:
+    - Keep it short and dense
+    - It may contain keywords
+    - It may contain technical concepts
+    - It may contain related component names
+    - It may contain framework names
+    - It may contain programming concepts
+    - Write the query in English
+    - Do not use markdown formatting
+    - Do not write full sentences unless necessary
+    - Your answer must be ONLY the search query
+    - Do not write an introduction
+    - Do not write an explanation
+    - Do not use quotation marks
+    - If the question contains a class, function or file name, always keep it
+    in the search query, spelled exactly as given
+
+    Behaviour per question type:
     - code:
-    fókuszálj:
-    - függvényekre
-    - osztályokra
-    - implementációra
-    - API-kra
-    - változónevekre
-    - source code fogalmakra
+    focus on:
+    - functions
+    - classes
+    - implementation
+    - APIs
+    - variable names
+    - source code concepts
 
     - summary:
-    fókuszálj:
-    - architektúrára
-    - komponensekre
-    - működésre
-    - felelősségekre
-    - folyamatokra
+    focus on:
+    - architecture
+    - components
+    - behaviour
+    - responsibilities
+    - processes
 
     - text:
-    fókuszálj:
-    - dokumentációra
-    - konfigurációra
-    - telepítésre
-    - használatra
-    - README jellegű fogalmakra
+    focus on:
+    - documentation
+    - configuration
+    - installation
+    - usage
+    - README-like concepts
 
     - general:
-    használj vegyes technikai és dokumentációs kulcsszavakat
+    use a mix of technical and documentation keywords
 
-    Példák:
+    Examples:
 
-    Kérdés:
-    "hol van az auth?"
+    Question:
+    "where is the auth?"
 
-    Keresési lekérdezés:
+    Search query:
     authentication auth login jwt token authorization middleware AuthService
     ---
-    Kérdés:
-    "mit csinál a file upload?"
+    Question:
+    "what does the file upload do?"
 
-    Keresési lekérdezés:
+    Search query:
     file upload UploadFile multipart form-data file_service upload_qdrant_async FastAPI endpoint
     ---
-    Kérdés:
-    "hogy működik a router?"
+    Question:
+    "how does the router work?"
 
-    Keresési lekérdezés:
+    Search query:
     FastAPI router APIRouter endpoint route request handler controller API routing
     ---
-    Felhasználói kérdés:
+    User question:
     {start_question}
-    
-    Kérdés típusa:
+
+    Question type:
     {state['question_type']}
     """
     '''
@@ -303,6 +358,7 @@ def route_after_graph(state: RagState) -> str:
 async def embed_question(state: RagState) -> RagState:
     text_for_embedding = (
         state.get("rephrased_question")
+        or state.get("question_en")
         or state.get("question")
         or ""
     )
@@ -431,7 +487,7 @@ async def build_context(state: RagState) -> RagState:
     for index, result in enumerate(top_results, start=1):
         payload = result.get("payload", {})
 
-        doc_name = payload.get("docName") or "ismeretlen dokumentum"
+        doc_name = payload.get("docName") or "unknown document"
         path = payload.get("path") or ""
         kind = payload.get("kind") or ""
         name = payload.get("name") or ""
@@ -456,12 +512,14 @@ async def build_context(state: RagState) -> RagState:
             print(json.dumps(payload, indent=2, ensure_ascii=False))
             continue
 
+        # A cimkek is angolul: a kontextus nyelve erosen befolyasolja, milyen
+        # nyelven valaszol a modell, es itt angol valaszt akarunk.
         context_parts.append(
-            f"[Forrás {index}: {doc_name}]\n"
+            f"[Source {index}: {doc_name}]\n"
             f"Path: {path}\n"
-            f"Típus: {kind}\n"
-            f"Név: {name}\n"
-            f"Talált vektor: {matched_vector}\n"
+            f"Kind: {kind}\n"
+            f"Name: {name}\n"
+            f"Matched vector: {matched_vector}\n"
             f"Score: {result.get('score', 0)}\n\n"
             f"{text}"
         )
@@ -474,7 +532,7 @@ async def build_context(state: RagState) -> RagState:
     graph_context = state.get("graph_context", [])
 
     if graph_context:
-        context += "\n\n===== KNOWLEDGE GRAPH KAPCSOLATOK =====\n\n"
+        context += "\n\n===== KNOWLEDGE GRAPH RELATIONS =====\n\n"
         context += "\n\n".join(graph_context)
 
     print("Keresési kontextus:", context)
@@ -488,44 +546,47 @@ async def build_context(state: RagState) -> RagState:
     }
 
 
+# A "nincs talalat" valasz angolul szuletik, mint minden mas; a
+# translate_answer forditja vissza a kerdezo nyelvere.
+NOT_FOUND_EN = "I could not find this in the documents."
+
+
 async def generate_answer(state: RagState) -> RagState:
     start_time = time.perf_counter()
-    question = state["question"]
+    # A modell az angol kerdest kapja, es angolul is valaszol: a kontextus
+    # (kod es angol osszefoglalok) igy vegig egy nyelven van vele.
+    question = state.get("question_en") or state["question"]
     context = state.get("context", "")
 
     if not context.strip():
         return {
             **state,
-            "answer": "Nem találom a dokumentumokban.",
+            "answer_en": NOT_FOUND_EN,
             #test
             "generation_time_ms": (time.perf_counter() - start_time) * 1000,
             "total_time_ms": state.get("retrieval_time_ms", 0) + ((time.perf_counter() - start_time) * 1000)
         }
-        
+
 
     final_prompt = f"""
-    Te egy asszisztens vagy, aki KIZÁRÓLAG az alábbi KONTEKSZTUS alapján válaszol.
+    You are an assistant that answers ONLY from the CONTEXT below.
 
-    Szabályok:
-    - Mindig azon a nyelven válaszolj, amilyen nyelven a kérdés elhangzott.
-    - Ha a válasz nem található a kontextusban, ezt mondd: "Nem találom a dokumentumokban."
-    - Ne találj ki semmit a kontextuson kívül.
-    - Ha kódról kérdeznek, magyarázd el érthetően, mire való és hogyan működik.
-    - Ha több forrás van, vond össze az információkat.
-    - A választ fogalmazd természetesen, ne csak másold vissza a kontextust.
-    - Ugyanazon a nyelven válaszolj, amelyen a felhasználó kérdezett.
-    - Ha a kérdés magyar, a válasz is magyar legyen.
-    - Ha a kérdés angol, a válasz is angol legyen.
-    - A kód nyelve nem határozza meg a válasz nyelvét.
-    - Ne fordítsd le a kódrészleteket, csak a magyarázat nyelvét igazítsd a kérdéshez.
+    Rules:
+    - Always answer in English, whatever language anything else is written in.
+    - If the answer is not in the context, say exactly: "{NOT_FOUND_EN}"
+    - Do not invent anything outside the context.
+    - If asked about code, explain clearly what it is for and how it works.
+    - If there are several sources, combine the information.
+    - Phrase the answer naturally, do not just copy the context back.
+    - Never translate code fragments, identifiers or file paths.
 
-    KÉRDÉS TÍPUSA:
+    QUESTION TYPE:
     {state.get("question_type", "unknown")}
 
-    KONTEKSZTUS:
+    CONTEXT:
     {context}
 
-    KÉRDÉS:
+    QUESTION:
     {question}
     """
 
@@ -545,14 +606,69 @@ async def generate_answer(state: RagState) -> RagState:
     data = response.json()
     answer = data.get("response") or " "'''
     answer=await call_llm(final_prompt)
-    print("A VÁLASZ: ",answer)
+    print("AZ ANGOL VÁLASZ: ",answer)
     generation_time_ms = (time.perf_counter() - start_time) * 1000
     return {
         **state,
-        "answer": answer,
+        "answer_en": answer,
         #test
         "generation_time_ms": generation_time_ms,
         "total_time_ms": state.get("retrieval_time_ms", 0) + generation_time_ms
+    }
+
+
+async def translate_answer(state: RagState) -> RagState:
+    """Az angol valaszt visszaforditja a kerdes nyelvere.
+
+    Ez az egyetlen plusz LLM-hivas a pivot miatt, es csak akkor fut le, ha a
+    kerdes nem angol volt. Angol kerdesnel csak atmasolja a valaszt.
+    """
+    answer_en = (state.get("answer_en") or "").strip()
+    language = (state.get("language") or "en").lower()
+    language_name = state.get("language_name") or "English"
+
+    if not answer_en:
+        return {**state, "answer": NOT_FOUND_EN}
+
+    if language.startswith("en"):
+        return {**state, "answer": answer_en}
+
+    start_time = time.perf_counter()
+
+    translate_prompt = f"""
+    Translate the text below into {language_name}.
+
+    Rules:
+    - Return ONLY the translation, nothing else.
+    - Do not write an introduction, a note or an explanation.
+    - Do NOT translate code fragments, identifiers, function names, class names,
+      file paths or file extensions - copy them exactly as they are.
+    - Keep the structure of the text: line breaks, lists and code blocks stay.
+    - Use natural, fluent {language_name}, not a word by word translation.
+
+    Text:
+    {answer_en}
+    """
+
+    try:
+        translated = (await call_llm(translate_prompt)).strip()
+    except Exception as e:
+        # Egy angol valasz tobbet er, mint egy hibauzenet.
+        print("translate_answer hiba:", e)
+        return {**state, "answer": answer_en}
+
+    if not translated:
+        return {**state, "answer": answer_en}
+
+    print(f"A LEFORDÍTOTT VÁLASZ ({language}): ", translated)
+
+    translation_time_ms = (time.perf_counter() - start_time) * 1000
+
+    return {
+        **state,
+        "answer": translated,
+        #test
+        "total_time_ms": state.get("total_time_ms", 0) + translation_time_ms
     }
 
 
@@ -591,9 +707,9 @@ async def search_knowledge_graph(state: RagState) -> RagState:
 
             if context_items:
                 graph_context.append(
-                    f"Knowledge graph találat ehhez: {name}\n"
+                    f"Knowledge graph match for: {name}\n"
                     f"Path: {path}\n"
-                    f"Kapcsolatok:\n{json.dumps(context_items, ensure_ascii=False, indent=2, default=str)}"
+                    f"Relations:\n{json.dumps(context_items, ensure_ascii=False, indent=2, default=str)}"
                 )
 
     finally:
@@ -632,6 +748,7 @@ builder.add_node("search_knowledge_graph", search_knowledge_graph)
 builder.add_node("rerank_results", rerank_results)
 builder.add_node("build_context", build_context)
 builder.add_node("generate_answer", generate_answer)
+builder.add_node("translate_answer", translate_answer)
 
 builder.set_entry_point("classify_question")
 
@@ -662,7 +779,8 @@ builder.add_conditional_edges(
 
 builder.add_edge("rerank_results", "build_context")
 builder.add_edge("build_context", "generate_answer")
-builder.add_edge("generate_answer", END)
+builder.add_edge("generate_answer", "translate_answer")
+builder.add_edge("translate_answer", END)
 
 rag_graph = builder.compile()
 
