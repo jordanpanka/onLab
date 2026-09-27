@@ -23,6 +23,8 @@ namespace ef
 
         public int IndexedFileCount { get; set; }
 
+        public int SkippedFileCount { get; set; }
+
         public int TotalFileCount { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
