@@ -104,7 +104,7 @@ export function UploadFile({ setFile, link, open, setOpen, repo, setRepo, import
 
                     {/* Az import szinkron: a nagy archívumok percekig is tarthatnak,
                         ezért kell a visszajelzés, különben lefagyottnak tűnik. */}
-                    {busy && <span>Importálás folyamatban…</span>}
+                    {busy && <span>Import in progress…</span>}
                     {result && <span>{result}</span>}
 
                 </Box>

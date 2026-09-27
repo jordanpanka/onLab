@@ -95,14 +95,14 @@ describe("UploadFile", () => {
   it("importálás közben letiltja a gombokat és jelzi a folyamatot", () => {
     renderDialog({ busy: true });
 
-    expect(screen.getByText("Importálás folyamatban…")).toBeInTheDocument();
+    expect(screen.getByText("Import in progress…")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeDisabled();
     expect(screen.getByText("Upload")).toBeDisabled();
   });
 
   it("megjeleníti az eredményt", () => {
-    renderDialog({ result: "Kész: 12 fájl indexelve, 3 kihagyva (abc1234)." });
+    renderDialog({ result: "Done: 12 files indexed, 3 skipped (abc1234)." });
 
-    expect(screen.getByText("Kész: 12 fájl indexelve, 3 kihagyva (abc1234).")).toBeInTheDocument();
+    expect(screen.getByText("Done: 12 files indexed, 3 skipped (abc1234).")).toBeInTheDocument();
   });
 });

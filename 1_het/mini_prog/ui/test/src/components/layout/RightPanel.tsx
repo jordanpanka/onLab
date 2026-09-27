@@ -24,7 +24,7 @@ export type RepoItem = {
 
 const POLL_MS = 3000;
 const FINISHED = ["Ready", "Failed"];
-const SESSION_EXPIRED = "A munkameneted lejárt, jelentkezz be újra.";
+const SESSION_EXPIRED = "Your session has expired, please sign in again.";
 
 /** A token egy óráig él, így ez import közben is bármikor előjöhet. */
 class SessionExpiredError extends Error { }
@@ -36,23 +36,23 @@ class SessionExpiredError extends Error { }
 async function describeHttpError(response: Response) {
     if (response.status === 401) return SESSION_EXPIRED;
     const body = await response.text();
-    return body || `A kérés ${response.status} hibával tért vissza.`;
+    return body || `The request failed with status ${response.status}.`;
 }
 
 function describeRepo(item: RepoItem) {
     switch (item.status) {
         case "Queued":
-            return "Sorban áll…";
+            return "Queued…";
         case "Fetching":
-            return "Archívum letöltése a GitHubról…";
+            return "Downloading the archive from GitHub…";
         case "Indexing":
             return item.total > 0
-                ? `Indexelés: ${item.indexed}/${item.total} fájl`
-                : "Fájlok előkészítése…";
+                ? `Indexing: ${item.indexed}/${item.total} files`
+                : "Preparing files…";
         case "Ready":
-            return `Kész: ${item.indexed} fájl indexelve, ${item.skipped} kihagyva (${item.commitSha.slice(0, 7)}).`;
+            return `Done: ${item.indexed} files indexed, ${item.skipped} skipped (${item.commitSha.slice(0, 7)}).`;
         case "Failed":
-            return `Hiba: ${item.error ?? "ismeretlen hiba"}`;
+            return `Error: ${item.error ?? "unknown error"}`;
         default:
             return item.status;
     }
@@ -97,7 +97,7 @@ export function RightPanel(rpProps: RightPanelProps) {
     }
     async function link() {
         if (!file) {
-            setUploadResult("Előbb válassz ki egy fájlt!");
+            setUploadResult("Choose a file first.");
             return;
         }
 
@@ -137,7 +137,7 @@ export function RightPanel(rpProps: RightPanelProps) {
 
     async function importRepo() {
         if (!repo.owner.trim() || !repo.name.trim()) {
-            setUploadResult("Add meg a repository tulajdonosát és nevét!");
+            setUploadResult("Enter the repository owner and name.");
             return;
         }
 
@@ -173,7 +173,7 @@ export function RightPanel(rpProps: RightPanelProps) {
             setUploadResult(describeRepo({ status: "Queued", indexed: 0, total: 0 } as RepoItem));
             setWatchedRepoId(data.repositoryId);
         } catch {
-            setUploadResult("A repository importálása nem sikerült.");
+            setUploadResult("Could not import the repository.");
             setBusy(false);
         }
     }

@@ -111,7 +111,7 @@ describe("RightPanel", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Indexelés: 25/100 fájl")).toBeInTheDocument();
+      expect(screen.getByText("Indexing: 25/100 files")).toBeInTheDocument();
     });
   });
 
@@ -150,7 +150,7 @@ describe("RightPanel", () => {
         "/api/investigations/projects/repositories/add",
         expect.objectContaining({ method: "POST" })
       );
-      expect(screen.getByText("Sorban áll…")).toBeInTheDocument();
+      expect(screen.getByText("Queued…")).toBeInTheDocument();
     });
   });
 
@@ -180,7 +180,7 @@ describe("RightPanel", () => {
     fireEvent.click(screen.getByText("Import"));
 
     await waitFor(() => {
-      expect(screen.getByText("A munkameneted lejárt, jelentkezz be újra.")).toBeInTheDocument();
+      expect(screen.getByText("Your session has expired, please sign in again.")).toBeInTheDocument();
     });
   });
 
