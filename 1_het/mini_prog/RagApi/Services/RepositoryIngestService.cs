@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -51,12 +52,24 @@ public class RepositoryIngestService
 
         if (!ownsIt) return ServiceResult.Fail("Investigation doesn't belong to this user.");
 
-        // One import at a time per project: two concurrent imports would race on
-        // the duplicate check and could store the same file twice.
+        
         var busy = await db.Repositories
             .AnyAsync(r => r.ProjectID == projectId && RepositoryStatus.InFlight.Contains(r.Status));
 
         if (busy) return ServiceResult.Fail("An import is already running for this project.");
+
+       
+        var quota = await gitHub.GetRateLimitAsync();
+
+        if (quota.Ok)
+        {
+            var limit = (RateLimitState)quota.Data!;
+
+            if (limit.Remaining < GitHubService.RequestsPerImport)
+                return ServiceResult.Fail(
+                    $"GitHub rate limit exhausted ({limit.Limit} requests/hour). " +
+                    $"It resets at {limit.ResetUtc:HH:mm} UTC.");
+        }
 
         var record = new DbRepository
         {
@@ -89,8 +102,7 @@ public class RepositoryIngestService
             return;
         }
 
-        // The queue only carries the id, so the owning user and investigation
-        // have to be looked up again here.
+    
         var context = await db.Projects
             .Where(p => p.ID == record.ProjectID)
             .Select(p => new { InvId = p.InvestigationID, UserId = p.Investigation.UserID })
@@ -102,19 +114,23 @@ public class RepositoryIngestService
             return;
         }
 
+        RepositorySnapshot? snapshot = null;
+
         try
         {
             record.Status = RepositoryStatus.Fetching;
             await db.SaveChangesAsync(cancellationToken);
 
-            var fetch = await gitHub.FetchSnapshotAsync(record.Owner, record.Name, record.Reference);
+            var fetch = await gitHub.FetchSnapshotAsync(
+                record.Owner, record.Name, record.Reference, cancellationToken);
+
             if (!fetch.Ok)
             {
                 await MarkFailedAsync(record, fetch.Error!);
                 return;
             }
 
-            var snapshot = (RepositorySnapshot)fetch.Data!;
+            snapshot = (RepositorySnapshot)fetch.Data!;
 
             record.CommitSha = snapshot.CommitSha;
             record.SkippedFileCount = snapshot.SkippedCount;
@@ -123,26 +139,24 @@ public class RepositoryIngestService
 
             logger.LogInformation(
                 "Repository {Owner}/{Repo}@{Sha}: {Kept} files to index, {Skipped} skipped of {Total} entries",
-                record.Owner, record.Name, snapshot.CommitSha, snapshot.Files.Count,
+                record.Owner, record.Name, snapshot.CommitSha, snapshot.Entries.Count,
                 snapshot.SkippedCount, snapshot.TotalEntries);
 
-            if (snapshot.Files.Count == 0)
+            if (snapshot.Entries.Count == 0)
             {
                 await MarkFailedAsync(record, "No indexable files found in the repository.");
                 return;
             }
 
-            // Drop anything already stored for this project, mirroring the upload path.
-            var pending = new List<RepositoryFile>();
+           
+            var stored = await fileService.GetStoredFileKeysAsync(
+                context.UserId, context.InvId, record.ProjectID);
 
-            foreach (var candidate in snapshot.Files)
-            {
-                var duplicate = await fileService.CheckDuplicates(
-                    context.UserId, context.InvId, record.ProjectID, candidate.File, candidate.RelativePath);
+            var pending = snapshot.Entries
+                .Where(e => !stored.Contains(FileService.StoredFileKey(e.Path, Path.GetFileName(e.Path))))
+                .ToList();
 
-                if (duplicate.Ok) pending.Add(candidate);
-                else record.SkippedFileCount++;
-            }
+            record.SkippedFileCount += snapshot.Entries.Count - pending.Count;
 
             if (pending.Count == 0)
             {
@@ -153,35 +167,43 @@ public class RepositoryIngestService
             record.TotalFileCount = pending.Count;
             await db.SaveChangesAsync(cancellationToken);
 
-            
+           
             for (var offset = 0; offset < pending.Count; offset += BatchSize)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var batch = pending.Skip(offset).Take(BatchSize).ToList();
-                var files = batch.Select(b => b.File).ToList();
-                var paths = batch.Select(b => b.RelativePath).ToList();
+                var batch = pending.Skip(offset).Take(BatchSize).Select(snapshot.Open).ToList();
 
-                var indexed = await fileService.UploadQdrantPythonAsync(
-                    context.UserId, files, paths, record.ProjectID, context.InvId);
-
-                if (!indexed.Ok)
+                try
                 {
-                    await MarkFailedAsync(record, indexed.Error!);
-                    return;
-                }
+                    var files = batch.Select(b => b.File).ToList();
+                    var paths = batch.Select(b => b.RelativePath).ToList();
 
-                var stored = await fileService.UploadAsync(record.ProjectID, files, paths);
-                if (!stored.Ok)
+                    var indexed = await fileService.UploadQdrantPythonAsync(
+                        context.UserId, files, paths, record.ProjectID, context.InvId);
+
+                    if (!indexed.Ok)
+                    {
+                        await MarkFailedAsync(record, indexed.Error!);
+                        return;
+                    }
+
+                    var recorded = await fileService.UploadAsync(record.ProjectID, files, paths);
+                    if (!recorded.Ok)
+                    {
+                        await MarkFailedAsync(record, "Failed to record repository files.");
+                        return;
+                    }
+
+                    await minioService.UploadAsync(context.UserId, files, paths, record.ProjectID, context.InvId);
+
+                    record.IndexedFileCount += files.Count;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+                finally
                 {
-                    await MarkFailedAsync(record, "Failed to record repository files.");
-                    return;
+                    foreach (var file in batch) file.Dispose();
                 }
-
-                await minioService.UploadAsync(context.UserId, files, paths, record.ProjectID, context.InvId);
-
-                record.IndexedFileCount += files.Count;
-                await db.SaveChangesAsync(cancellationToken);
 
                 logger.LogInformation(
                     "Repository {RepositoryId}: {Done}/{Total} files indexed",
@@ -200,6 +222,10 @@ public class RepositoryIngestService
         {
             logger.LogError(ex, "Repository ingest failed for {Owner}/{Repo}", record.Owner, record.Name);
             await MarkFailedAsync(record, ex.Message);
+        }
+        finally
+        {
+            snapshot?.Dispose();
         }
     }
 

@@ -1,32 +1,109 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 
 
-public class RepositoryFile
+public class RepositoryEntry
 {
-    public IFormFile File { get; set; } = default!;
-    public string RelativePath { get; set; } = "";
+    public string Path { get; set; } = "";
+    public long Length { get; set; }
+
+    internal ZipArchiveEntry Source { get; set; } = default!;
 }
 
-public class RepositorySnapshot
+public sealed class RepositoryFile : IDisposable
 {
-    public string CommitSha { get; set; } = "";
-    public List<RepositoryFile> Files { get; set; } = new();
+    public IFormFile File { get; }
+    public string RelativePath { get; }
+
+    private readonly MemoryStream buffer;
+
+    internal RepositoryFile(IFormFile file, string relativePath, MemoryStream content)
+    {
+        File = file;
+        RelativePath = relativePath;
+        buffer = content;
+    }
+
+    public void Dispose() => buffer.Dispose();
+}
+
+public sealed class RepositorySnapshot : IDisposable
+{
+    private readonly FileStream file;
+    private readonly ZipArchive archive;
+    private readonly List<RepositoryEntry> entries = new();
+
+    public string CommitSha { get; }
     public int SkippedCount { get; set; }
     public int TotalEntries { get; set; }
+
+    public IReadOnlyList<RepositoryEntry> Entries => entries;
+
+    internal RepositorySnapshot(string commitSha, FileStream tempFile, ZipArchive zip)
+    {
+        CommitSha = commitSha;
+        file = tempFile;
+        archive = zip;
+    }
+
+    internal void Add(RepositoryEntry entry) => entries.Add(entry);
+
+    public RepositoryFile Open(RepositoryEntry entry)
+    {
+        // A ShouldIndex MaxFileBytes-ra szűrt, tehát a méret biztosan elfér
+        // int-en; a pontos kapacitás megspórolja a MemoryStream újrafoglalásait.
+        var buffer = new MemoryStream((int)entry.Length);
+
+        using (var content = entry.Source.Open())
+        {
+            content.CopyTo(buffer);
+        }
+
+        buffer.Position = 0;
+
+        var fileName = Path.GetFileName(entry.Path);
+        var formFile = new FormFile(buffer, 0, buffer.Length, "files", fileName)
+        {
+            Headers = new HeaderDictionary()
+        };
+        formFile.ContentType = GitHubService.ContentTypeFor(Path.GetExtension(fileName));
+
+        return new RepositoryFile(formFile, entry.Path, buffer);
+    }
+
+    public void Dispose()
+    {
+        archive.Dispose();
+
+        // A temp fájl DeleteOnClose-szal nyílt, tehát itt tűnik el — akkor is,
+        // ha az import félúton elhasalt.
+        file.Dispose();
+    }
+}
+
+public class RateLimitState
+{
+    public int Limit { get; set; }
+    public int Remaining { get; set; }
+    public DateTime ResetUtc { get; set; }
 }
 
 public class GitHubService
 {
     private readonly HttpClient httpClient;
+
+    private readonly string? token;
 
     private const string UserAgent = "mini-prog-rag";
     private const string ApiRoot = "https://api.github.com";
@@ -68,12 +145,18 @@ public class GitHubService
 
     private const int MaxFiles = 2000;
 
-    public GitHubService(HttpClient http)
+    /// <summary>Egy import két API-kérést használ: a SHA feloldását és a zipballt.</summary>
+    public const int RequestsPerImport = 2;
+
+    public GitHubService(HttpClient http, IConfiguration configuration)
     {
         httpClient = http;
+
+        
+        token = configuration["GitHub:Token"];
     }
 
-    private HttpRequestMessage BuildRequest(HttpMethod method, string url, string? token)
+    private HttpRequestMessage BuildRequest(HttpMethod method, string url)
     {
         var request = new HttpRequestMessage(method, url);
         request.Headers.UserAgent.ParseAdd(UserAgent);
@@ -87,24 +170,53 @@ public class GitHubService
         return request;
     }
 
-    public async Task<ServiceResult> GetCommitShaAsync(string owner, string repo, string reference, string? token = null)
+    
+    public async Task<ServiceResult> GetRateLimitAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var request = BuildRequest(HttpMethod.Get, $"{ApiRoot}/rate_limit");
+            using var response = await httpClient.SendAsync(request, cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+                return ServiceResult.Fail($"GitHub returned {(int)response.StatusCode} for /rate_limit.");
+
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+            var core = doc.RootElement.GetProperty("resources").GetProperty("core");
+
+            return ServiceResult.Success(new RateLimitState
+            {
+                Limit = core.GetProperty("limit").GetInt32(),
+                Remaining = core.GetProperty("remaining").GetInt32(),
+                ResetUtc = DateTimeOffset
+                    .FromUnixTimeSeconds(core.GetProperty("reset").GetInt64())
+                    .UtcDateTime
+            });
+        }
+        catch (Exception ex)
+        {
+            return ServiceResult.Fail($"Could not read the GitHub rate limit: {ex.Message}");
+        }
+    }
+
+    public async Task<ServiceResult> GetCommitShaAsync(
+        string owner, string repo, string reference, CancellationToken cancellationToken = default)
     {
         try
         {
             using var request = BuildRequest(
                 HttpMethod.Get,
-                $"{ApiRoot}/repos/{owner}/{repo}/commits/{reference}",
-                token);
+                $"{ApiRoot}/repos/{owner}/{repo}/commits/{reference}");
 
-            using var response = await httpClient.SendAsync(request);
+            using var response = await httpClient.SendAsync(request, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync();
-                return ServiceResult.Fail($"GitHub returned {(int)response.StatusCode} for {owner}/{repo}@{reference}: {body}");
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                return ServiceResult.Fail($"{owner}/{repo}@{reference}: {DescribeFailure(response, body)}");
             }
 
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
             var sha = doc.RootElement.GetProperty("sha").GetString() ?? "";
             return ServiceResult.Success(sha);
         }
@@ -114,47 +226,70 @@ public class GitHubService
         }
     }
 
-    public async Task<ServiceResult> FetchSnapshotAsync(string owner, string repo, string reference, string? token = null)
+    public async Task<ServiceResult> FetchSnapshotAsync(
+        string owner, string repo, string reference, CancellationToken cancellationToken = default)
     {
-        var shaResult = await GetCommitShaAsync(owner, repo, reference, token);
+        var shaResult = await GetCommitShaAsync(owner, repo, reference, cancellationToken);
         if (!shaResult.Ok) return shaResult;
 
         var sha = (string)shaResult.Data!;
 
+        FileStream? buffer = null;
+
         try
         {
+            
             using var request = BuildRequest(
                 HttpMethod.Get,
-                $"{ApiRoot}/repos/{owner}/{repo}/zipball/{reference}",
-                token);
+                $"{ApiRoot}/repos/{owner}/{repo}/zipball/{sha}");
 
-            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await httpClient.SendAsync(
+                request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                var body = await response.Content.ReadAsStringAsync();
-                return ServiceResult.Fail($"Could not download {owner}/{repo}: HTTP {(int)response.StatusCode} {body}");
+                var body = await response.Content.ReadAsStringAsync(cancellationToken);
+                return ServiceResult.Fail($"Could not download {owner}/{repo}: {DescribeFailure(response, body)}");
             }
 
-            // ZipArchive needs random access, so buffer the download first.
-            using var buffer = new MemoryStream();
-            await response.Content.CopyToAsync(buffer);
+            
+            buffer = CreateTempFile();
+            await response.Content.CopyToAsync(buffer, cancellationToken);
             buffer.Position = 0;
 
-            var snapshot = ExtractSnapshot(buffer, sha);
+            var snapshot = BuildSnapshot(buffer, sha);
+
+            // Innentől a snapshot birtokolja a temp fájlt, ő is zárja le.
+            buffer = null;
+
             return ServiceResult.Success(snapshot);
         }
         catch (Exception ex)
         {
             return ServiceResult.Fail($"Failed to fetch {owner}/{repo}: {ex.Message}");
         }
+        finally
+        {
+            buffer?.Dispose();
+        }
     }
 
-    private RepositorySnapshot ExtractSnapshot(Stream zipStream, string sha)
+    private static FileStream CreateTempFile()
     {
-        var snapshot = new RepositorySnapshot { CommitSha = sha };
+        var path = Path.Combine(Path.GetTempPath(), $"repo-{Guid.NewGuid():N}.zip");
 
-        using var archive = new ZipArchive(zipStream, ZipArchiveMode.Read);
+        // DeleteOnClose: a fájl a Dispose-nál eltűnik, akkor is, ha az import
+        // kivétellel áll le, tehát nem szivárog lemez.
+        return new FileStream(
+            path, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None,
+            bufferSize: 81920, FileOptions.DeleteOnClose);
+    }
+
+    
+    private static RepositorySnapshot BuildSnapshot(FileStream buffer, string sha)
+    {
+        var archive = new ZipArchive(buffer, ZipArchiveMode.Read);
+        var snapshot = new RepositorySnapshot(sha, buffer, archive);
 
         foreach (var entry in archive.Entries)
         {
@@ -165,41 +300,74 @@ public class GitHubService
 
             var path = StripArchiveRoot(entry.FullName);
 
-            if (!ShouldIndex(path, entry.Length))
+            if (!ShouldIndex(path, entry.Length) || snapshot.Entries.Count >= MaxFiles)
             {
                 snapshot.SkippedCount++;
                 continue;
             }
 
-            if (snapshot.Files.Count >= MaxFiles)
+            snapshot.Add(new RepositoryEntry
             {
-                snapshot.SkippedCount++;
-                continue;
-            }
-
-            // Copy out now: the entry stream is only valid while the archive is open.
-            var bytes = new MemoryStream();
-            using (var entryStream = entry.Open())
-            {
-                entryStream.CopyTo(bytes);
-            }
-            bytes.Position = 0;
-
-            var fileName = Path.GetFileName(path);
-            var formFile = new FormFile(bytes, 0, bytes.Length, "files", fileName)
-            {
-                Headers = new HeaderDictionary()
-            };
-            formFile.ContentType = ContentTypeFor(Path.GetExtension(fileName));
-
-            snapshot.Files.Add(new RepositoryFile
-            {
-                File = formFile,
-                RelativePath = path
+                Path = path,
+                Length = entry.Length,
+                Source = entry
             });
         }
 
         return snapshot;
+    }
+
+    private string DescribeFailure(HttpResponseMessage response, string body)
+    {
+        var status = (int)response.StatusCode;
+
+        // Kimerült kvótánál a GitHub 403-at vagy 429-et ad, és a remaining 0.
+        if ((status == 403 || status == 429) && ReadIntHeader(response, "x-ratelimit-remaining") == 0)
+        {
+            var limit = ReadIntHeader(response, "x-ratelimit-limit");
+            var reset = ReadResetHeader(response);
+
+            var scope = limit.HasValue ? $" ({limit} requests/hour)" : "";
+            var when = reset.HasValue ? $" It resets at {reset.Value:HH:mm} UTC." : "";
+            var hint = string.IsNullOrWhiteSpace(token)
+                ? " Set GitHub:Token to raise the limit from 60 to 5000 requests/hour."
+                : "";
+
+            return $"GitHub rate limit exhausted{scope}.{when}{hint}";
+        }
+
+        if (status == 401)
+            return "GitHub rejected the configured token (GitHub:Token); it may be expired or revoked.";
+
+        if (status == 404)
+            return string.IsNullOrWhiteSpace(token)
+                ? "Repository not found. Private repositories need GitHub:Token to be configured."
+                : "Repository not found, or the configured token cannot see it.";
+
+        // A body lehet több kilobájt is, a hibaüzenet pedig 1000 karakterre
+        // csonkolva megy a DB-be.
+        var trimmed = body.Length > 300 ? body[..300] : body;
+        return $"GitHub returned {status}: {trimmed}";
+    }
+
+    private static int? ReadIntHeader(HttpResponseMessage response, string name)
+    {
+        if (!response.Headers.TryGetValues(name, out var values)) return null;
+
+        var raw = values.FirstOrDefault();
+        return int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsed)
+            ? parsed
+            : null;
+    }
+
+    private static DateTime? ReadResetHeader(HttpResponseMessage response)
+    {
+        if (!response.Headers.TryGetValues("x-ratelimit-reset", out var values)) return null;
+
+        var raw = values.FirstOrDefault();
+        return long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var epoch)
+            ? DateTimeOffset.FromUnixTimeSeconds(epoch).UtcDateTime
+            : null;
     }
 
     private static string StripArchiveRoot(string fullName)
@@ -229,13 +397,13 @@ public class GitHubService
 
         var extension = Path.GetExtension(fileName);
 
-        
+
         return string.IsNullOrEmpty(extension)
             ? AllowedFilenames.Contains(fileName)
             : AllowedExtensions.Contains(extension);
     }
 
-    private static string ContentTypeFor(string extension) => extension.ToLowerInvariant() switch
+    internal static string ContentTypeFor(string extension) => extension.ToLowerInvariant() switch
     {
         ".md" => "text/markdown",
         ".json" => "application/json",
