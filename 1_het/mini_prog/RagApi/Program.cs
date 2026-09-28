@@ -105,7 +105,21 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<ProjectService>();
-builder.Services.AddScoped<FileService>();
+
+builder.Services.AddHttpClient<FileService>(c =>
+{
+
+    c.Timeout = TimeSpan.FromMinutes(60);
+});
+
+builder.Services.AddHttpClient<GitHubService>(c =>
+{
+    c.Timeout = TimeSpan.FromMinutes(10);
+});
+builder.Services.AddScoped<RepositoryIngestService>();
+
+builder.Services.AddSingleton<RepositoryIngestQueue>();
+builder.Services.AddHostedService<RepositoryIngestWorker>();
 builder.Services.AddScoped<ChatService>();
 builder.Services.AddScoped<MinioService>();
 
@@ -181,16 +195,14 @@ static async Task EnsureCollection(HttpClient http, string qdrantUrl, string col
 }
 app.Lifetime.ApplicationStarted.Register(() =>
 {
-    // Qdrant lives at a different host in Docker than when running locally,
-    // so take the URL from config (Ai__QdrantUrl) rather than a const.
+
     var qdrantUrl = app.Configuration["Ai:QdrantUrl"] ?? Qdrant;
     var qdrantCollection = app.Configuration["Ai:Collection"] ?? Collection;
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
     _ = Task.Run(async () =>
     {
-        // Fire-and-forget: without this catch, any failure here is swallowed
-        // silently and the missing collection only shows up as a failed upload.
+    
         try
         {
             using var scopeHttp = new HttpClient();

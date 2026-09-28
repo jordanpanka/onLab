@@ -138,6 +138,69 @@ class NodeCreator:
                 "ts_type": ts_node.type,
             }
         )
+    def extract_docstring(self, body_node, source_code: bytes) -> str:
+        """A torzs elso utasitasa, ha az egy string literal (Python docstring).
+
+        Mas nyelveknel ures stringet ad vissza -- ott a vaz a fejlecbol es a
+        szignaturakbol all ossze, docstring nelkul.
+        """
+        for child in body_node.children:
+            if child.type == "comment":
+                continue
+            if child.type == "expression_statement":
+                for sub in child.children:
+                    if sub.type == "string":
+                        text = source_code[sub.start_byte:sub.end_byte].decode(
+                            "utf-8", errors="replace"
+                        ).strip()
+                        # Csak az elso sor: a vaznak rovidnek kell maradnia.
+                        return text.splitlines()[0][:200] if text else ""
+            # Az elso erdemi utasitas utan mar nem johet docstring.
+            break
+        return ""
+
+    def class_skeleton(self, ts_node, source_code: bytes, function_types: list) -> str:
+        """Az osztaly interfesze: fejlec + docstring + metodus-szignaturak.
+
+        A teljes torzs helyett ezt foglaltatjuk ossze az LLM-mel. Egy nagy
+        osztaly igy nem esik szet 14 chunkra (a Bill_App 23587 karakter volt),
+        es az osszefoglalo tenylegesen az osztaly egeszerol szol, nem egy
+        veletlen kodtoredekrol.
+
+        A metodustorzsek nem vesznek el: azok kulon function node-kent
+        indexelodnek. Ma ugyanazok a torzsek ketszer szerepelnek -- az osztaly
+        chunkjaiban es sajat node-kent is.
+        """
+        body = ts_node.child_by_field_name("body")
+        if body is None:
+            # Ismeretlen grammatika: marad a mai viselkedes, a teljes torzs.
+            return source_code[ts_node.start_byte:ts_node.end_byte].decode(
+                "utf-8", errors="replace"
+            )
+
+        # "class Bill_App(Frame):" -- a node elejetol a torzs elejeig
+        header = source_code[ts_node.start_byte:body.start_byte].decode(
+            "utf-8", errors="replace"
+        ).strip()
+
+        lines = [header]
+
+        docstring = self.extract_docstring(body, source_code)
+        if docstring:
+            lines.append("    " + docstring)
+
+        for child in body.children:
+            if child.type not in function_types:
+                continue
+            method_body = child.child_by_field_name("body")
+            end = method_body.start_byte if method_body else child.end_byte
+            signature = source_code[child.start_byte:end].decode(
+                "utf-8", errors="replace"
+            ).strip()
+            lines.append("    " + signature + " ...")
+
+        return "\n".join(lines)
+
     def ts_node_to_llamaindex_node_class(
     self,
     ts_node,
@@ -145,14 +208,24 @@ class NodeCreator:
     path: str
 ) -> list[TextNode]:
 
-        code = source_code[ts_node.start_byte:ts_node.end_byte].decode(
-            "utf-8",
-            errors="replace"
-        )
-
         parse_service = CodeParser()
         class_name = parse_service.get_node_name(ts_node, source_code)
 
+        # A nyelvhez tartozo fuggveny-node tipusok, hogy a metodusokat
+        # felismerjuk a torzsben. A code_parsers-bol jon, tehat nyelvenkent
+        # automatikusan a helyes ertek (function_definition, method_declaration...).
+        try:
+            parse_service.select_language(path)
+            function_types = parse_service.code_parsers[
+                parse_service.selected_language
+            ]["node_types"]["function"]
+        except (KeyError, IndexError):
+            function_types = []
+
+        code = self.class_skeleton(ts_node, source_code, function_types)
+
+        # A vaz gyakorlatilag mindig elfer egy darabban; a chunkolas csak
+        # biztonsagi halo egy szelsosegesen sok metodusu osztalyra.
         chunks = self.split_code_semantically(code)
 
         nodes = []
@@ -239,29 +312,42 @@ class NodeCreator:
             kind = node.metadata.get("kind", "")
             name = node.metadata.get("name", "")
 
+            # Az osszefoglalok MINDIG angolul keszulnek, fuggetlenul attol, hogy a
+            # felhasznalo milyen nyelven kerdez kesobb. Egy nyelven tartva oket a
+            # summary-vektorok egy szemantikus terben maradnak: egy magyar kerdes
+            # angolra forditva keresi oket, igy nem a nyelv, hanem a tartalom dont.
+            # Korabban a modell a hivasok ketharmadaban angolul, egyharmadaban
+            # magyarul valaszolt, ami ketteszakitotta ezt a teret.
             prompt = f"""
-            Feladat:
-            Készíts rövid, informatív összefoglalót az alábbi Python kódrészletről.
+            Summarise in at most 3 sentences what this {kind} does: what its main
+            responsibility is, and what its most important methods or behaviour are.
+            Be technical and concise.
 
-            Szabályok:
-            - 3-5 mondat
-            - Írd le, mi a kódrészlet fő felelőssége
-            - Emeld ki a fontos metódusokat vagy működést
-            - Ne másold vissza a teljes kódot
-            - Technikai, de tömör legyen
+            Always answer in English, no matter what language the code, its comments
+            or its identifiers are written in.
+            Do not use headings, bullet points or Markdown formatting (**, #, -).
+            Do not quote the code back. Do not start with "This code..." or anything
+            similar - start directly with what it does.
 
-            Metaadatok:
-            - Path: {path}
-            - Típus: {kind}
-            - Név: {name}
+            Name: {name}
+            Path: {path}
 
-            Kód:
+            Code:
             {code}
+
+            Summary:
             """
             
             summary = await call_llm(prompt)
-            perc=await self.check_summary(code,summary.strip())
-            print(" A százalékos mgfeleltság" +perc)
+
+            # IDEIGLENESEN KIVÉVE: a check_summary node-onként megduplázta az
+            # LLM-hívások számát, a visszakapott százalékot viszont csak
+            # kiírtuk, sehol nem használtuk. Egy CPU-n futó llama3-nál ez
+            # önmagában kétszeresére nyújtotta az import idejét.
+            # A metódus alább megmarad; visszakapcsoláshoz elég ez a két sor:
+            # perc=await self.check_summary(code,summary.strip())
+            # print(" A százalékos mgfeleltság" +perc)
+
             return summary.strip()
         
     async def check_summary(self, code, summary)->float:

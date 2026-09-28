@@ -113,6 +113,23 @@ public class FileService
 
         return ServiceResult.Success();
     }
+
+   
+    public async Task<HashSet<string>> GetStoredFileKeysAsync(int userId, int investigationId, int projectId)
+    {
+        var stored = await codeDbContext.Files
+            .Where(f =>
+                f.ProjectID == projectId &&
+                f.Project.InvestigationID == investigationId &&
+                f.Project.Investigation.UserID == userId)
+            .Select(f => new { f.RelativePath, f.Name })
+            .ToListAsync();
+
+        return stored.Select(s => StoredFileKey(s.RelativePath, s.Name)).ToHashSet();
+    }
+
+    
+    public static string StoredFileKey(string relativePath, string name) => $"{relativePath}\n{name}";
     public async Task<ServiceResult> SaveFileAsZip(int pid, IFormFile file, string path)
     {
         using var archive = new ZipArchive(file.OpenReadStream(), ZipArchiveMode.Read);
@@ -278,8 +295,6 @@ public async Task<ServiceResult> UploadQdrantPythonAsync(int userId, List<IFormF
 {
     try
     {
-       
-        httpClient.Timeout = TimeSpan.FromMinutes(10);
 
         using var content = new MultipartFormDataContent();
 
